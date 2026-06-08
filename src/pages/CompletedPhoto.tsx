@@ -6,7 +6,8 @@ import bg from "../assets/basicBg.png";
 import FullScreenBackground from "../components/FullScreenBackground";
 import { ManitoText, MulmaruText } from "../components/PikuraText";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+// Next.js 백엔드 서버 주소 (로컬: http://localhost:3000, 배포 후: https://your-domain.com)
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 function CompletedPhoto() {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ function CompletedPhoto() {
 
     async function uploadAndGenerateQr() {
       try {
-        const res = await fetch(`${API_URL}/photos/upload`, {
+        const res = await fetch(`${API_BASE}/api/photos/upload`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ imageData: completedPhoto }),
