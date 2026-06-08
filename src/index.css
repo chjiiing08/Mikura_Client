@@ -1,0 +1,46 @@
+@import "tailwindcss";
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+}
+body {
+  font-family: 'Hakgyoansim_ManitoR';
+}
+
+
+@font-face {
+  font-family: 'Hakgyoansim_ManitoR';
+  src: url('/src/assets/fonts/Hakgyoansim_ManitoR.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'MulmaruMono';
+  src: url('/src/assets/fonts/MulmaruMono.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Mulmaru Mono';
+  src: url('/src/assets/fonts/MulmaruMono.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Mulmaru';
+  src: url('/src/assets/fonts/Mulmaru.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
