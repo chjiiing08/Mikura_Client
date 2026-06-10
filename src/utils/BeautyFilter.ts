@@ -15,8 +15,10 @@ const LIPS       = [61,185,40,39,37,0,267,269,270,409,291,375,321,405,314,17,84,
 
 // 코 관련 랜드마크
 const NOSE_TIP      = 1;    // 코 끝
+const NOSE_BOTTOM   = 2;    // 코 밑
 const LEFT_NOSTRIL  = 294;  // 왼쪽 콧볼 바깥 끝
 const RIGHT_NOSTRIL = 64;   // 오른쪽 콧볼 바깥 끝
+const NOSE_CENTER   = 1;    // 코 끝 (콧볼 사이 중심 기준)
 
 export interface BeautyOptions {
   whitening   : number;   // 미백 0~1 (기본 0.4)
@@ -25,12 +27,6 @@ export interface BeautyOptions {
   jawSlim     : number;   // 턱 슬림 0~1 (기본 0.25)
   noseSlim    : number;   // 콧볼 축소 0~1 (기본 0.3)
   noseShorter : number;   // 코 길이 축소 0~1 (기본 0.2)
-  lipTint     : number;   // 입술 핑크 틴트 0~1
-  lipGloss    : number;   // 입술 광택 0~1
-  blushStrength: number;  // 볼터치 0~1
-  irisScale   : number;   // 눈동자 확대 1.0~1.4
-  eyeSparkle  : boolean;  // 프리쿠라 눈 반짝임
-  aegyoSal    : number;   // 애교살 0~1
   eyeHighlight: boolean;
   debug       : boolean;
 }
@@ -42,12 +38,6 @@ const DEFAULT_OPTIONS: BeautyOptions = {
   jawSlim     : 0.6,
   noseSlim    : 0.6,
   noseShorter : 0.2,
-  lipTint     : 0.45,
-  lipGloss    : 0.35,
-  blushStrength: 0.35,
-  irisScale   : 1.12,
-  eyeSparkle  : true,
-  aegyoSal    : 0.35,
   eyeHighlight: false,
   debug       : false,
 };
@@ -55,7 +45,6 @@ const DEFAULT_OPTIONS: BeautyOptions = {
 export class BeautyFilter {
   private landmarker: FaceLandmarker | null = null;
   private lastPerfTs = 0;
-  private detectFrame = 0;
   latestLandmarks: Landmark[] | null = null;
   private _ready = false;
   options: BeautyOptions = { ...DEFAULT_OPTIONS };
@@ -102,195 +91,143 @@ export class BeautyFilter {
     };
   }
 
-  private polygonBounds(poly: Pt[], w: number, h: number) {
-    const xs = poly.map(p => p.x);
-    const ys = poly.map(p => p.y);
-    return {
-      x0: Math.max(0, Math.floor(Math.min(...xs))),
-      x1: Math.min(w, Math.ceil(Math.max(...xs))),
-      y0: Math.max(0, Math.floor(Math.min(...ys))),
-      y1: Math.min(h, Math.ceil(Math.max(...ys))),
-    };
-  }
-
-  private drawPath(ctx: CanvasRenderingContext2D, pts: Pt[], close = true) {
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-    if (close) ctx.closePath();
-  }
-
-  // ── 전체 화면 톤업: 프리쿠라처럼 밝고 뽀얗게 ────────────────────
+  // ── 미백/스무딩: ctx.filter 로 캔버스에 직접 적용 ────────────────
   private getVideoFilterCSS(): string {
-    const { smoothing } = this.options;
-    const blur = Math.min(0.8, smoothing * 0.45).toFixed(2);
-    return `brightness(1.22) contrast(1.04) saturate(1.18) blur(${blur}px)`;
+    const { whitening, smoothing } = this.options;
+    const blur       = (smoothing  * 1.2).toFixed(1);
+    const brightness = (1 + whitening * 0.22).toFixed(2);
+    const saturate   = (1 - whitening * 0.18).toFixed(2);
+    return `blur(${blur}px) brightness(${brightness}) saturate(${saturate})`;
   }
 
-  // ── 가벼운 뽀얀 피부 느낌: 전체 화면에 연핑크 screen overlay ──────
-  private applySoftPurikuraOverlay(ctx: CanvasRenderingContext2D, w: number, h: number) {
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.12;
-    ctx.fillStyle = "rgba(255,235,245,1)";
-    ctx.fillRect(0, 0, w, h);
+  // ── 핵심: Bulge Warp (눈 확대 / 콧볼 축소 공용) ──────────────────
+  /**
+   * src → dst 로 픽셀 displacement
+   * strength > 1 : 바깥으로 밀기 (확대)
+   * strength < 1 : 안으로 당기기 (축소)
+   * feather      : 경계 자연스럽게 감쇠
+   */
+  private bulgeWarp(
+    src: Uint8ClampedArray,
+    dst: Uint8ClampedArray,
+    w: number, h: number,
+    center: Pt,
+    radius: number,
+    strength: number,    // >1 확대, <1 축소 (uniform)
+    strengthX?: number,  // x축 별도 지정 (없으면 strength 사용)
+    strengthY?: number   // y축 별도 지정 (없으면 strength 사용)
+  ) {
+    const cx = center.x, cy = center.y;
+    const r2 = radius * radius;
+    const sx_ = strengthX ?? strength;
+    const sy_ = strengthY ?? strength;
 
-    ctx.globalCompositeOperation = "soft-light";
-    ctx.globalAlpha = 0.10;
-    ctx.fillStyle = "rgba(255,245,250,1)";
-    ctx.fillRect(0, 0, w, h);
-    ctx.restore();
-  }
+    const yStart = Math.max(0,  Math.floor(cy - radius));
+    const yEnd   = Math.min(h,  Math.ceil (cy + radius));
+    const xStart = Math.max(0,  Math.floor(cx - radius));
+    const xEnd   = Math.min(w,  Math.ceil (cx + radius));
 
-  // ── 입술 메이크업: 핑크 틴트 + 채도 + 광택 ───────────────────────
-  private applyLipMakeup(ctx: CanvasRenderingContext2D, pt: (i: number) => Pt) {
-    const { lipTint, lipGloss } = this.options;
-    if (lipTint <= 0 && lipGloss <= 0) return;
+    for (let y = yStart; y < yEnd; y++) {
+      for (let x = xStart; x < xEnd; x++) {
+        const dx = x - cx, dy = y - cy;
+        const dist2 = dx * dx + dy * dy;
+        if (dist2 >= r2) continue;
 
-    const lips = LIPS.map(i => pt(i));
-    const c = this.avg(lips);
-    const bounds = this.polygonBounds(lips, ctx.canvas.width, ctx.canvas.height);
-    const lipW = bounds.x1 - bounds.x0;
-    const lipH = Math.max(1, bounds.y1 - bounds.y0);
+        // feather: 가장자리로 갈수록 0으로 수렴 (smoothstep)
+        const t       = 1 - dist2 / r2;
+        const feather = t * t * (3 - 2 * t);
 
-    ctx.save();
-    this.drawPath(ctx, lips);
-    ctx.clip();
+        // x/y 축별 warp scale 분리
+        const warpScaleX = 1 + (1 / sx_ - 1) * feather;
+        const warpScaleY = 1 + (1 / sy_ - 1) * feather;
+        const sx = cx + dx * warpScaleX;
+        const sy = cy + dy * warpScaleY;
 
-    if (lipTint > 0) {
-      ctx.globalCompositeOperation = "soft-light";
-      ctx.fillStyle = `rgba(255, 70, 135, ${0.32 * lipTint})`;
-      ctx.fillRect(bounds.x0, bounds.y0, lipW, lipH);
+        const x0 = Math.floor(sx), y0 = Math.floor(sy);
+        const x1 = x0 + 1,        y1 = y0 + 1;
+        if (x0 < 0 || y0 < 0 || x1 >= w || y1 >= h) continue;
 
-      ctx.globalCompositeOperation = "source-over";
-      const tint = ctx.createRadialGradient(c.x, c.y, 1, c.x, c.y, Math.max(lipW, lipH) * 0.55);
-      tint.addColorStop(0, `rgba(255, 96, 155, ${0.26 * lipTint})`);
-      tint.addColorStop(1, `rgba(210, 34, 92, ${0.12 * lipTint})`);
-      ctx.fillStyle = tint;
-      ctx.fillRect(bounds.x0, bounds.y0, lipW, lipH);
+        const fx = sx - x0, fy = sy - y0;
+        const i00 = (y0 * w + x0) * 4;
+        const i10 = (y0 * w + x1) * 4;
+        const i01 = (y1 * w + x0) * 4;
+        const i11 = (y1 * w + x1) * 4;
+        const di  = (y  * w + x ) * 4;
+
+        for (let c = 0; c < 4; c++) {
+          dst[di + c] =
+            src[i00 + c] * (1 - fx) * (1 - fy) +
+            src[i10 + c] *      fx  * (1 - fy) +
+            src[i01 + c] * (1 - fx) *      fy  +
+            src[i11 + c] *      fx  *      fy;
+        }
+      }
     }
+  }
 
-    if (lipGloss > 0) {
-      const gloss = ctx.createRadialGradient(c.x, c.y - lipH * 0.18, 0, c.x, c.y - lipH * 0.18, lipW * 0.38);
-      gloss.addColorStop(0, `rgba(255,255,255,${0.35 * lipGloss})`);
-      gloss.addColorStop(0.45, `rgba(255,230,238,${0.16 * lipGloss})`);
-      gloss.addColorStop(1, "rgba(255,255,255,0)");
-      ctx.fillStyle = gloss;
+  // ── 턱 슬림: Displacement Warp + 완전한 feather ──────────────────
+  /**
+   * 경계선 제거 핵심:
+   * - hard clip(rect) 완전 제거
+   * - y 방향 feather를 smoothstep으로 처리
+   * - 영향 범위 밖 픽셀은 건드리지 않음 (src 그대로 유지)
+   */
+  private jawSlimWarp(
+    src: Uint8ClampedArray,
+    dst: Uint8ClampedArray,
+    w: number, h: number,
+    chin: Pt,
+    faceW: number,
+    faceH: number,
+    strength: number
+  ) {
+    const effectH = faceH * 0.4;
+    const topY    = chin.y - effectH;
+
+    for (let y = Math.max(0, topY | 0); y < Math.min(h, (chin.y + 5) | 0); y++) {
+      // smoothstep feather: 위쪽은 0, 아래쪽(턱)은 1
+      const tRaw    = (y - topY) / effectH;
+      const t       = Math.max(0, Math.min(1, tRaw));
+      const feather = t * t * (3 - 2 * t);             // smoothstep
+      const maxShift = faceW * 0.07 * strength * feather;
+
+      for (let x = 0; x < w; x++) {
+        const dx    = x - chin.x;
+        const side  = Math.max(-1, Math.min(1, dx / (faceW * 0.5)));
+        const shift = side * maxShift;
+
+        const sx = x + shift;
+        const x0 = Math.floor(sx), x1 = x0 + 1;
+        if (x0 < 0 || x1 >= w) continue;
+
+        const fx = sx - x0;
+        const i0 = (y * w + x0) * 4;
+        const i1 = (y * w + x1) * 4;
+        const di = (y * w + x ) * 4;
+
+        for (let c = 0; c < 4; c++) {
+          dst[di + c] = src[i0 + c] * (1 - fx) + src[i1 + c] * fx;
+        }
+      }
+    }
+  }
+
+  // ── 눈 하이라이트 ────────────────────────────────────────────────
+  private applyEyeHighlight(ctx: CanvasRenderingContext2D, pt: (i: number) => Pt) {
+    if (!this.options.eyeHighlight) return;
+    const draw = (irisIdx: number[]) => {
+      const c = this.avg(irisIdx.map(i => pt(i)));
+      const grad = ctx.createRadialGradient(c.x, c.y + 7, 0, c.x, c.y + 7, 15);
+      grad.addColorStop(0,   "rgba(255,255,255,0.32)");
+      grad.addColorStop(0.6, "rgba(255,255,255,0.12)");
+      grad.addColorStop(1,   "rgba(255,255,255,0)");
       ctx.beginPath();
-      ctx.ellipse(c.x, c.y - lipH * 0.12, lipW * 0.24, lipH * 0.23, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.restore();
-  }
-
-  // ── 볼터치: 양 볼에 핑크/코랄 radial gradient ───────────────────
-  private applyBlush(ctx: CanvasRenderingContext2D, pt: (i: number) => Pt) {
-    const { blushStrength } = this.options;
-    if (blushStrength <= 0) return;
-
-    const leftCheek = this.avg([pt(50), pt(205), pt(187)]);
-    const rightCheek = this.avg([pt(280), pt(425), pt(411)]);
-    const faceW = Math.abs(pt(454).x - pt(234).x);
-    const rx = faceW * 0.16;
-    const ry = faceW * 0.095;
-
-    const draw = (c: Pt, coral: boolean) => {
-      ctx.save();
-      ctx.translate(c.x, c.y);
-      ctx.rotate(coral ? -0.08 : 0.08);
-      ctx.scale(1, ry / rx);
-      const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
-      grad.addColorStop(0, coral ? `rgba(255,125,105,${0.24 * blushStrength})` : `rgba(255,102,156,${0.24 * blushStrength})`);
-      grad.addColorStop(0.52, coral ? `rgba(255,150,125,${0.13 * blushStrength})` : `rgba(255,145,180,${0.13 * blushStrength})`);
-      grad.addColorStop(1, "rgba(255,170,190,0)");
+      ctx.ellipse(c.x, c.y + 8, 11, 5, 0, 0, Math.PI * 2);
       ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(0, 0, rx, 0, Math.PI * 2);
       ctx.fill();
-      ctx.restore();
     };
-
-    ctx.save();
-    ctx.globalCompositeOperation = "source-over";
-    draw(leftCheek, false);
-    draw(rightCheek, true);
-    ctx.restore();
-  }
-
-  // ── 눈 보정 강화: 흰자/애교살/속눈썹/반짝임 ─────────────────────
-  private applyEyeMakeup(ctx: CanvasRenderingContext2D, pt: (i: number) => Pt) {
-    const { aegyoSal, eyeSparkle } = this.options;
-    const drawEye = (eyeIdx: number[], irisIdx: number[], flip: number) => {
-      const eye = eyeIdx.map(i => pt(i));
-      const iris = irisIdx.map(i => pt(i));
-      const c = this.avg(iris);
-      const bounds = this.polygonBounds(eye, ctx.canvas.width, ctx.canvas.height);
-      const eyeW = bounds.x1 - bounds.x0;
-      const eyeH = Math.max(1, bounds.y1 - bounds.y0);
-
-      // 눈 흰자 밝기 증가.
-      ctx.save();
-      this.drawPath(ctx, eye);
-      ctx.clip();
-      ctx.globalCompositeOperation = "screen";
-      ctx.fillStyle = "rgba(255,255,255,0.18)";
-      ctx.fillRect(bounds.x0, bounds.y0, eyeW, eyeH);
-      ctx.restore();
-
-      if (aegyoSal > 0) {
-        const salY = bounds.y1 + eyeH * 0.42;
-        const grad = ctx.createRadialGradient(c.x, salY, 0, c.x, salY, eyeW * 0.52);
-        grad.addColorStop(0, `rgba(255,238,232,${0.22 * aegyoSal})`);
-        grad.addColorStop(0.42, `rgba(255,208,216,${0.11 * aegyoSal})`);
-        grad.addColorStop(1, "rgba(255,255,255,0)");
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.ellipse(c.x, salY, eyeW * 0.42, eyeH * 0.45, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.strokeStyle = `rgba(170,105,112,${0.10 * aegyoSal})`;
-        ctx.lineWidth = Math.max(1, eyeH * 0.045);
-        ctx.beginPath();
-        ctx.ellipse(c.x, salY + eyeH * 0.34, eyeW * 0.38, eyeH * 0.20, 0, Math.PI * 0.08, Math.PI * 0.92);
-        ctx.stroke();
-      }
-
-      // 속눈썹이 길어 보이도록 위쪽 눈꺼풀에서 짧은 라인을 뻗음.
-      const lashPts = eye.slice(1, 8);
-      ctx.save();
-      ctx.strokeStyle = "rgba(35,22,26,0.42)";
-      ctx.lineWidth = Math.max(1, eyeH * 0.055);
-      ctx.lineCap = "round";
-      lashPts.forEach((p, idx) => {
-        if (idx % 2 !== 0) return;
-        const out = 4 + eyeH * 0.22;
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(p.x + flip * out * 0.22, p.y - out);
-        ctx.stroke();
-      });
-      ctx.restore();
-
-      if (eyeSparkle || this.options.eyeHighlight) {
-        const sparkle = ctx.createRadialGradient(c.x - eyeW * 0.09, c.y - eyeH * 0.18, 0, c.x - eyeW * 0.09, c.y - eyeH * 0.18, eyeW * 0.18);
-        sparkle.addColorStop(0, "rgba(255,255,255,0.72)");
-        sparkle.addColorStop(0.36, "rgba(255,255,255,0.28)");
-        sparkle.addColorStop(1, "rgba(255,255,255,0)");
-        ctx.fillStyle = sparkle;
-        ctx.beginPath();
-        ctx.arc(c.x - eyeW * 0.09, c.y - eyeH * 0.18, eyeW * 0.18, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = "rgba(255,255,255,0.82)";
-        ctx.beginPath();
-        ctx.arc(c.x + eyeW * 0.10, c.y - eyeH * 0.12, Math.max(1.5, eyeH * 0.11), 0, Math.PI * 2);
-        ctx.fill();
-      }
-    };
-
-    drawEye(LEFT_EYE, LEFT_IRIS, -1);
-    drawEye(RIGHT_EYE, RIGHT_IRIS, 1);
+    draw(LEFT_IRIS);
+    draw(RIGHT_IRIS);
   }
 
   // ── 디버그 ───────────────────────────────────────────────────────
@@ -335,14 +272,11 @@ export class BeautyFilter {
     ctx.filter = this.getVideoFilterCSS();
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, cw, ch);
     ctx.restore();
-    this.applySoftPurikuraOverlay(ctx, cw, ch);
 
-    // 랜드마크 감지: 매 프레임 실행하지 않고 캐시된 결과를 재사용해서 렉을 줄임.
+    // 랜드마크 감지
     if (this._ready && this.landmarker) {
-      this.detectFrame = (this.detectFrame + 1) % 3;
-      const shouldDetect = this.detectFrame === 0;
       const ts = performance.now();
-      if (shouldDetect && ts - this.lastPerfTs >= 45) {
+      if (ts - this.lastPerfTs >= 16) {
         this.lastPerfTs = ts;
         const result = this.landmarker.detectForVideo(video, ts);
         this.latestLandmarks = (result.faceLandmarks?.[0] as Landmark[]) ?? null;
@@ -360,10 +294,78 @@ export class BeautyFilter {
     const lm = this.latestLandmarks;
     const pt = (i: number): Pt => this.toCanvas(lm[i], cw, ch, sx, sy, sw, sh, vw, vh);
 
-    // 메이크업/프리쿠라 레이어
-    this.applyBlush(ctx, pt);
-    this.applyLipMakeup(ctx, pt);
-    this.applyEyeMakeup(ctx, pt);
+    const { eyeScale, jawSlim, noseSlim, noseShorter } = this.options;
+
+    if (eyeScale > 1.0 || jawSlim > 0 || noseSlim > 0 || noseShorter > 0) {
+      const imgData = ctx.getImageData(0, 0, cw, ch);
+      let src = new Uint8ClampedArray(imgData.data);
+      let dst = new Uint8ClampedArray(src);   // src 복사본에서 시작
+
+      // 1. 눈 확대 (Bulge)
+      if (eyeScale > 1.0) {
+        const leftCenter  = this.avg(LEFT_IRIS.map(i => pt(i)));
+        const rightCenter = this.avg(RIGHT_IRIS.map(i => pt(i)));
+        const eyeR = (center: Pt, eyeIdx: number[]) =>
+          Math.max(...eyeIdx.map(i => {
+            const p = pt(i);
+            return Math.sqrt((p.x - center.x) ** 2 + (p.y - center.y) ** 2);
+          })) * 2.8;
+
+        // x축(옆): eyeScale 보다 약하게 / y축(위아래): eyeScale 그대로
+        const scaleX = 1 + (eyeScale - 1) * 0.4;  // 옆은 35%만
+        const scaleY = eyeScale*1.1;                     // 위아래는 100%
+        this.bulgeWarp(src, dst, cw, ch, leftCenter,  eyeR(leftCenter,  LEFT_EYE),  eyeScale, scaleX, scaleY);
+        this.bulgeWarp(src, dst, cw, ch, rightCenter, eyeR(rightCenter, RIGHT_EYE), eyeScale, scaleX, scaleY);
+        src = new Uint8ClampedArray(dst); // 다음 단계 입력으로
+      }
+
+      // 2. 콧볼 축소 — 양쪽 콧볼 바깥점 사이 중심 기준
+      if (noseSlim > 0) {
+        const leftNostril  = pt(LEFT_NOSTRIL);
+        const rightNostril = pt(RIGHT_NOSTRIL);
+
+        // 중심: 콧볼 바깥점 사이 x 중간, y는 콧볼 실제 높이
+        const noseCenter: Pt = {
+          x: (leftNostril.x + rightNostril.x) / 2,
+          y: (leftNostril.y + rightNostril.y) / 2,
+        };
+
+        // 반경: 콧볼 너비의 0.6배 (콧망울까지 안 닿게)
+        const nostrilW   = Math.abs(rightNostril.x - leftNostril.x);
+        const noseRadius = nostrilW * 0.6;
+        const shrink     = 1 - noseSlim * 0.4;
+
+        this.bulgeWarp(src, dst, cw, ch, noseCenter, noseRadius, shrink);
+        src = new Uint8ClampedArray(dst);
+      }
+
+      // 3. 코 길이 축소 (코 끝을 위로 당기기)
+      if (noseShorter > 0) {
+        const noseTip = pt(NOSE_TIP);
+        const noseShortRadius = Math.abs(pt(6).y - pt(168).y) * 1.8;
+        // 위쪽으로 당기는 효과: y 중심을 코 위쪽으로 올린 center 사용
+        const noseTopCenter: Pt = { x: noseTip.x, y: noseTip.y - noseShortRadius * 0.3 };
+        const shrinkY = 1 - noseShorter * 0.15;
+
+        this.bulgeWarp(src, dst, cw, ch, noseTopCenter, noseShortRadius, shrinkY);
+        src = new Uint8ClampedArray(dst);
+      }
+
+      // 4. 턱 슬림 (경계선 없는 버전)
+      if (jawSlim > 0) {
+        const chin  = pt(152);
+        const left  = pt(234), right = pt(454), top = pt(10);
+        const faceW = Math.abs(right.x - left.x);
+        const faceH = Math.abs(chin.y  - top.y);
+        this.jawSlimWarp(src, dst, cw, ch, chin, faceW, faceH, jawSlim);
+      }
+
+      imgData.data.set(dst);
+      ctx.putImageData(imgData, 0, 0);
+    }
+
+    // 눈 하이라이트
+    this.applyEyeHighlight(ctx, pt);
 
     if (this.options.debug) this.drawDebug(ctx, pt, cw, ch);
   }

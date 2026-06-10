@@ -7,7 +7,6 @@ import FullScreenBackground from "../components/FullScreenBackground";
 import { ManitoText, MulmaruText } from "../components/PikuraText";
 import Loading from "./Loading";
 import styled from "styled-components";
-import { BeautyFilter } from "../utils/BeautyFilter";
 
 const TOTAL_PHOTO_COUNT = 6;
 const COUNTDOWN_START = 5;
@@ -19,9 +18,6 @@ const SHUTTER_MOTION_DURATION = 520;
 function CameraPage() {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const beautyFilterRef = useRef<BeautyFilter | null>(null);
-  const animFrameRef = useRef<number | null>(null);
   const capturedPhotosRef = useRef<string[]>([]);
   const countdownRef = useRef(COUNTDOWN_START);
   const shutterTimeoutRef = useRef<number | null>(null);
@@ -34,7 +30,6 @@ function CameraPage() {
   const [isShutterMotionActive, setIsShutterMotionActive] = useState(false);
   const isReady = isCameraReady && isMaskReady;
 
-  // 카메라 스트림 시작 + BeautyFilter 초기화
   useEffect(() => {
     let stream: MediaStream | null = null;
     let isCancelled = false;
@@ -56,12 +51,6 @@ function CameraPage() {
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
         }
-
-        const filter = new BeautyFilter();
-        await filter.init();
-        if (!isCancelled) {
-          beautyFilterRef.current = filter;
-        }
       } catch (error) {
         console.error("Failed to start camera", error);
         setIsCameraReady(true);
@@ -73,39 +62,6 @@ function CameraPage() {
     return () => {
       isCancelled = true;
       stream?.getTracks().forEach((track) => track.stop());
-      beautyFilterRef.current = null;
-    };
-  }, []);
-
-  // BeautyFilter 렌더링 루프
-  useEffect(() => {
-    const loop = () => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const filter = beautyFilterRef.current;
-
-      if (video && canvas) {
-        if (filter?.isReady) {
-          filter.process(video, canvas);
-        } else if (video.readyState >= 2 && video.videoWidth > 0) {
-          // BeautyFilter 로딩 전 fallback: 미러 영상만 표시
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.save();
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            ctx.restore();
-          }
-        }
-      }
-
-      animFrameRef.current = requestAnimationFrame(loop);
-    };
-
-    animFrameRef.current = requestAnimationFrame(loop);
-    return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
   }, []);
 
@@ -152,43 +108,38 @@ function CameraPage() {
     canvas.width = CAPTURE_WIDTH;
     canvas.height = CAPTURE_HEIGHT;
 
-    const filter = beautyFilterRef.current;
-    if (filter?.isReady) {
-      filter.capture(video, canvas);
-    } else {
-      const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d");
 
-      if (!ctx) {
-        return;
-      }
-
-      const sourceAspect = video.videoWidth / video.videoHeight;
-      const captureAspect = CAPTURE_WIDTH / CAPTURE_HEIGHT;
-      const sourceWidth =
-        sourceAspect > captureAspect
-          ? video.videoHeight * captureAspect
-          : video.videoWidth;
-      const sourceHeight =
-        sourceAspect > captureAspect
-          ? video.videoHeight
-          : video.videoWidth / captureAspect;
-      const sourceX = (video.videoWidth - sourceWidth) / 2;
-      const sourceY = (video.videoHeight - sourceHeight) / 2;
-
-      ctx.translate(CAPTURE_WIDTH, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(
-        video,
-        sourceX,
-        sourceY,
-        sourceWidth,
-        sourceHeight,
-        0,
-        0,
-        CAPTURE_WIDTH,
-        CAPTURE_HEIGHT,
-      );
+    if (!ctx) {
+      return;
     }
+
+    const sourceAspect = video.videoWidth / video.videoHeight;
+    const captureAspect = CAPTURE_WIDTH / CAPTURE_HEIGHT;
+    const sourceWidth =
+      sourceAspect > captureAspect
+        ? video.videoHeight * captureAspect
+        : video.videoWidth;
+    const sourceHeight =
+      sourceAspect > captureAspect
+        ? video.videoHeight
+        : video.videoWidth / captureAspect;
+    const sourceX = (video.videoWidth - sourceWidth) / 2;
+    const sourceY = (video.videoHeight - sourceHeight) / 2;
+
+    ctx.translate(CAPTURE_WIDTH, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(
+      video,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      0,
+      0,
+      CAPTURE_WIDTH,
+      CAPTURE_HEIGHT,
+    );
 
     const photo = canvas.toDataURL("image/jpeg", 0.85);
     const nextPhotos = [...capturedPhotosRef.current, photo];
@@ -245,19 +196,12 @@ function CameraPage() {
       </GuideText>
       <CameraFrame $isReady={isReady}>
         <VideoMask $mask={cameraClipMask}>
-          {/* 스트림 소스용 video: 화면에는 표시 안 함 */}
-          <HiddenVideo
+          <CameraVideo
             ref={videoRef}
             autoPlay
             playsInline
             muted
             onCanPlay={() => setIsCameraReady(true)}
-          />
-          {/* BeautyFilter가 렌더링하는 canvas */}
-          <CameraCanvas
-            ref={canvasRef}
-            width={CAPTURE_WIDTH}
-            height={CAPTURE_HEIGHT}
           />
         </VideoMask>
 
@@ -328,19 +272,13 @@ const VideoMask = styled.div<{ $mask: string }>`
   -webkit-mask-position: center;
 `;
 
-const HiddenVideo = styled.video`
-  position: fixed;
-  top: -9999px;
-  left: -9999px;
-  width: 1px;
-  height: 1px;
-`;
-
-const CameraCanvas = styled.canvas`
+const CameraVideo = styled.video`
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
 `;
 
 const CountdownText = styled(MulmaruText)`
