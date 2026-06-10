@@ -15,10 +15,10 @@ const LIPS       = [61,185,40,39,37,0,267,269,270,409,291,375,321,405,314,17,84,
 
 // 코 관련 랜드마크
 const NOSE_TIP      = 1;    // 코 끝
-const NOSE_BOTTOM   = 2;    // 코 밑
+// const NOSE_BOTTOM   = 2;    // 코 밑
 const LEFT_NOSTRIL  = 294;  // 왼쪽 콧볼 바깥 끝
 const RIGHT_NOSTRIL = 64;   // 오른쪽 콧볼 바깥 끝
-const NOSE_CENTER   = 1;    // 코 끝 (콧볼 사이 중심 기준)
+// const NOSE_CENTER   = 1;    // 코 끝 (콧볼 사이 중심 기준)
 
 export interface BeautyOptions {
   whitening   : number;   // 미백 0~1 (기본 0.4)
