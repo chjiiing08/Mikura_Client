@@ -45,7 +45,7 @@ const DEFAULT_OPTIONS: BeautyOptions = {
 export class BeautyFilter {
   private landmarker: FaceLandmarker | null = null;
   private lastPerfTs = 0;
-  latestLandmarks: Landmark[] | null = null;
+  latestLandmarksList: Landmark[][] = [];
   private _ready = false;
   options: BeautyOptions = { ...DEFAULT_OPTIONS };
 
@@ -56,7 +56,7 @@ export class BeautyFilter {
     this.landmarker = await FaceLandmarker.createFromOptions(vision, {
       baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
       runningMode: "VIDEO",
-      numFaces: 1,
+      numFaces: 4,
     });
     this._ready = true;
   }
@@ -173,44 +173,47 @@ export class BeautyFilter {
    * - 영향 범위 밖 픽셀은 건드리지 않음 (src 그대로 유지)
    */
   private jawSlimWarp(
-    src: Uint8ClampedArray,
-    dst: Uint8ClampedArray,
-    w: number, h: number,
-    chin: Pt,
-    faceW: number,
-    faceH: number,
-    strength: number
-  ) {
-    const effectH = faceH * 0.4;
-    const topY    = chin.y - effectH;
+  src: Uint8ClampedArray,
+  dst: Uint8ClampedArray,
+  w: number, h: number,
+  chin: Pt,
+  faceW: number,
+  faceH: number,
+  strength: number
+) {
+  const effectH = faceH * 0.28;
+  const topY = chin.y - effectH;
+  const bottomY = chin.y - faceH * 0.12;
 
-    for (let y = Math.max(0, topY | 0); y < Math.min(h, (chin.y + 5) | 0); y++) {
-      // smoothstep feather: 위쪽은 0, 아래쪽(턱)은 1
-      const tRaw    = (y - topY) / effectH;
-      const t       = Math.max(0, Math.min(1, tRaw));
-      const feather = t * t * (3 - 2 * t);             // smoothstep
-      const maxShift = faceW * 0.07 * strength * feather;
+  for (let y = Math.max(0, topY | 0); y < Math.min(h, bottomY | 0); y++) {
+    const tRaw = (y - topY) / (bottomY - topY);
+    const t = Math.max(0, Math.min(1, tRaw));
 
-      for (let x = 0; x < w; x++) {
-        const dx    = x - chin.x;
-        const side  = Math.max(-1, Math.min(1, dx / (faceW * 0.5)));
-        const shift = side * maxShift;
+    // 위/아래 경계에서 0이 되게 해서 줄 방지
+    const feather = Math.sin(t * Math.PI);
+    const maxShift = faceW * 0.035 * strength * feather;
 
-        const sx = x + shift;
-        const x0 = Math.floor(sx), x1 = x0 + 1;
-        if (x0 < 0 || x1 >= w) continue;
+    for (let x = 0; x < w; x++) {
+      const dx = x - chin.x;
+      const side = Math.max(-1, Math.min(1, dx / (faceW * 0.5)));
+      const shift = side * maxShift;
 
-        const fx = sx - x0;
-        const i0 = (y * w + x0) * 4;
-        const i1 = (y * w + x1) * 4;
-        const di = (y * w + x ) * 4;
+      const sx = x + shift;
+      const x0 = Math.floor(sx);
+      const x1 = x0 + 1;
+      if (x0 < 0 || x1 >= w) continue;
 
-        for (let c = 0; c < 4; c++) {
-          dst[di + c] = src[i0 + c] * (1 - fx) + src[i1 + c] * fx;
-        }
+      const fx = sx - x0;
+      const i0 = (y * w + x0) * 4;
+      const i1 = (y * w + x1) * 4;
+      const di = (y * w + x) * 4;
+
+      for (let c = 0; c < 4; c++) {
+        dst[di + c] = src[i0 + c] * (1 - fx) + src[i1 + c] * fx;
       }
     }
   }
+}
 
   // ── 눈 하이라이트 ────────────────────────────────────────────────
   private applyEyeHighlight(ctx: CanvasRenderingContext2D, pt: (i: number) => Pt) {
@@ -259,7 +262,7 @@ export class BeautyFilter {
   }
 
   // ── 메인 process ─────────────────────────────────────────────────
-  process(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
+    process(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
     if (video.readyState < 2 || video.videoWidth === 0) return;
 
     const cw = canvas.width, ch = canvas.height;
@@ -268,106 +271,104 @@ export class BeautyFilter {
     const { sx, sy, sw, sh } = this.videoCrop(video, cw, ch);
 
     ctx.save();
-    ctx.translate(cw, 0); ctx.scale(-1, 1);
+    ctx.translate(cw, 0);
+    ctx.scale(-1, 1);
     ctx.filter = this.getVideoFilterCSS();
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, cw, ch);
     ctx.restore();
 
-    // 랜드마크 감지
     if (this._ready && this.landmarker) {
       const ts = performance.now();
       if (ts - this.lastPerfTs >= 16) {
         this.lastPerfTs = ts;
         const result = this.landmarker.detectForVideo(video, ts);
-        this.latestLandmarks = (result.faceLandmarks?.[0] as Landmark[]) ?? null;
+        this.latestLandmarksList = (result.faceLandmarks as Landmark[][]) ?? [];
       }
     }
 
-    if (!this.latestLandmarks) {
-      ctx.font = `bold ${Math.round(cw * 0.04)}px sans-serif`;
-      ctx.fillStyle = "rgba(255,80,80,0.85)";
-      ctx.textAlign = "center";
-      ctx.fillText("얼굴을 정면으로 봐주세요", cw / 2, ch * 0.92);
-      return;
-    }
-
-    const lm = this.latestLandmarks;
-    const pt = (i: number): Pt => this.toCanvas(lm[i], cw, ch, sx, sy, sw, sh, vw, vh);
+    if (this.latestLandmarksList.length === 0) return;
 
     const { eyeScale, jawSlim, noseSlim, noseShorter } = this.options;
 
-    if (eyeScale > 1.0 || jawSlim > 0 || noseSlim > 0 || noseShorter > 0) {
-      const imgData = ctx.getImageData(0, 0, cw, ch);
-      let src = new Uint8ClampedArray(imgData.data);
-      let dst = new Uint8ClampedArray(src);   // src 복사본에서 시작
+    for (const lm of this.latestLandmarksList) {
+      const pt = (i: number): Pt =>
+        this.toCanvas(lm[i], cw, ch, sx, sy, sw, sh, vw, vh);
 
-      // 1. 눈 확대 (Bulge)
-      if (eyeScale > 1.0) {
-        const leftCenter  = this.avg(LEFT_IRIS.map(i => pt(i)));
-        const rightCenter = this.avg(RIGHT_IRIS.map(i => pt(i)));
-        const eyeR = (center: Pt, eyeIdx: number[]) =>
-          Math.max(...eyeIdx.map(i => {
-            const p = pt(i);
-            return Math.sqrt((p.x - center.x) ** 2 + (p.y - center.y) ** 2);
-          })) * 2.8;
+      if (eyeScale > 1.0 || jawSlim > 0 || noseSlim > 0 || noseShorter > 0) {
+        const imgData = ctx.getImageData(0, 0, cw, ch);
+        let src = new Uint8ClampedArray(imgData.data);
+        let dst = new Uint8ClampedArray(src);
 
-        // x축(옆): eyeScale 보다 약하게 / y축(위아래): eyeScale 그대로
-        const scaleX = 1 + (eyeScale - 1) * 0.4;  // 옆은 35%만
-        const scaleY = eyeScale*1.1;                     // 위아래는 100%
-        this.bulgeWarp(src, dst, cw, ch, leftCenter,  eyeR(leftCenter,  LEFT_EYE),  eyeScale, scaleX, scaleY);
-        this.bulgeWarp(src, dst, cw, ch, rightCenter, eyeR(rightCenter, RIGHT_EYE), eyeScale, scaleX, scaleY);
-        src = new Uint8ClampedArray(dst); // 다음 단계 입력으로
+        if (eyeScale > 1.0) {
+          const leftCenter = this.avg(LEFT_IRIS.map(i => pt(i)));
+          const rightCenter = this.avg(RIGHT_IRIS.map(i => pt(i)));
+
+          const eyeR = (center: Pt, eyeIdx: number[]) =>
+            Math.max(...eyeIdx.map(i => {
+              const p = pt(i);
+              return Math.sqrt((p.x - center.x) ** 2 + (p.y - center.y) ** 2);
+            })) * 2.8;
+
+          const scaleX = 1 + (eyeScale - 1) * 0.4;
+          const scaleY = eyeScale * 1.1;
+
+          this.bulgeWarp(src, dst, cw, ch, leftCenter, eyeR(leftCenter, LEFT_EYE), eyeScale, scaleX, scaleY);
+          this.bulgeWarp(src, dst, cw, ch, rightCenter, eyeR(rightCenter, RIGHT_EYE), eyeScale, scaleX, scaleY);
+
+          src = new Uint8ClampedArray(dst);
+        }
+
+        if (noseSlim > 0) {
+          const leftNostril = pt(LEFT_NOSTRIL);
+          const rightNostril = pt(RIGHT_NOSTRIL);
+
+          const noseCenter: Pt = {
+            x: (leftNostril.x + rightNostril.x) / 2,
+            y: (leftNostril.y + rightNostril.y) / 2,
+          };
+
+          const nostrilW = Math.abs(rightNostril.x - leftNostril.x);
+          const noseRadius = nostrilW * 0.6;
+          const shrink = 1 - noseSlim * 0.4;
+
+          this.bulgeWarp(src, dst, cw, ch, noseCenter, noseRadius, shrink);
+          src = new Uint8ClampedArray(dst);
+        }
+
+        if (noseShorter > 0) {
+          const noseTip = pt(NOSE_TIP);
+          const noseShortRadius = Math.abs(pt(6).y - pt(168).y) * 1.8;
+          const noseTopCenter: Pt = {
+            x: noseTip.x,
+            y: noseTip.y - noseShortRadius * 0.3,
+          };
+          const shrinkY = 1 - noseShorter * 0.15;
+
+          this.bulgeWarp(src, dst, cw, ch, noseTopCenter, noseShortRadius, shrinkY);
+          src = new Uint8ClampedArray(dst);
+        }
+
+        if (jawSlim > 0) {
+          const chin = pt(152);
+          const left = pt(234);
+          const right = pt(454);
+          const top = pt(10);
+          const faceW = Math.abs(right.x - left.x);
+          const faceH = Math.abs(chin.y - top.y);
+
+          this.jawSlimWarp(src, dst, cw, ch, chin, faceW, faceH, jawSlim);
+        }
+
+        imgData.data.set(dst);
+        ctx.putImageData(imgData, 0, 0);
       }
 
-      // 2. 콧볼 축소 — 양쪽 콧볼 바깥점 사이 중심 기준
-      if (noseSlim > 0) {
-        const leftNostril  = pt(LEFT_NOSTRIL);
-        const rightNostril = pt(RIGHT_NOSTRIL);
+      this.applyEyeHighlight(ctx, pt);
 
-        // 중심: 콧볼 바깥점 사이 x 중간, y는 콧볼 실제 높이
-        const noseCenter: Pt = {
-          x: (leftNostril.x + rightNostril.x) / 2,
-          y: (leftNostril.y + rightNostril.y) / 2,
-        };
-
-        // 반경: 콧볼 너비의 0.6배 (콧망울까지 안 닿게)
-        const nostrilW   = Math.abs(rightNostril.x - leftNostril.x);
-        const noseRadius = nostrilW * 0.6;
-        const shrink     = 1 - noseSlim * 0.4;
-
-        this.bulgeWarp(src, dst, cw, ch, noseCenter, noseRadius, shrink);
-        src = new Uint8ClampedArray(dst);
+      if (this.options.debug) {
+        this.drawDebug(ctx, pt, cw, ch);
       }
-
-      // 3. 코 길이 축소 (코 끝을 위로 당기기)
-      if (noseShorter > 0) {
-        const noseTip = pt(NOSE_TIP);
-        const noseShortRadius = Math.abs(pt(6).y - pt(168).y) * 1.8;
-        // 위쪽으로 당기는 효과: y 중심을 코 위쪽으로 올린 center 사용
-        const noseTopCenter: Pt = { x: noseTip.x, y: noseTip.y - noseShortRadius * 0.3 };
-        const shrinkY = 1 - noseShorter * 0.15;
-
-        this.bulgeWarp(src, dst, cw, ch, noseTopCenter, noseShortRadius, shrinkY);
-        src = new Uint8ClampedArray(dst);
-      }
-
-      // 4. 턱 슬림 (경계선 없는 버전)
-      if (jawSlim > 0) {
-        const chin  = pt(152);
-        const left  = pt(234), right = pt(454), top = pt(10);
-        const faceW = Math.abs(right.x - left.x);
-        const faceH = Math.abs(chin.y  - top.y);
-        this.jawSlimWarp(src, dst, cw, ch, chin, faceW, faceH, jawSlim);
-      }
-
-      imgData.data.set(dst);
-      ctx.putImageData(imgData, 0, 0);
     }
-
-    // 눈 하이라이트
-    this.applyEyeHighlight(ctx, pt);
-
-    if (this.options.debug) this.drawDebug(ctx, pt, cw, ch);
   }
 
   capture(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
