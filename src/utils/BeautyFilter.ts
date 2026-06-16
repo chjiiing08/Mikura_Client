@@ -165,6 +165,7 @@ const faceSlimWarp = (
   faceCenter: Point,
   faceWidth: number,
   strength: number,
+  chinSquish: number = 0.07,
 ) => {
   const src = ctx.getImageData(0, 0, width, height);
   const dst = ctx.getImageData(0, 0, width, height);
@@ -222,14 +223,17 @@ const faceSlimWarp = (
   movingContour.forEach((idx) => {
     usedLandmarks.add(idx);
     if (idx === 152) {
-      addControl(landmarks[idx]);
+      const upward = lowerFaceHeight * chinSquish;
+      addControl(landmarks[idx], { x: landmarks[idx].x, y: landmarks[idx].y - upward });
       return;
     }
     const point = landmarks[idx];
     const side = point.x < faceCenter.x ? -1 : 1;
+    const vertical = Math.min(1, Math.max(0, (point.y - cheekTopY) / lowerFaceHeight));
     const horizontalDistance = Math.abs(point.x - faceCenter.x);
     const inward = horizontalDistance * strength * getSlimWeight(point);
-    addControl(point, { x: point.x - side * inward, y: point.y });
+    const upward = lowerFaceHeight * chinSquish * smoothstep(0.4, 1, vertical);
+    addControl(point, { x: point.x - side * inward, y: point.y - upward });
   });
 
   [
@@ -436,7 +440,7 @@ export class BeautyFilter {
       const faceCenter = avgPoint([1, 168, 197]);
 
       // 6. 얼굴형/턱 슬림 (Delaunay 삼각분할)
-      faceSlimWarp(outCtx, cw, ch, landmarks, faceCenter, faceWidth, 0.1);
+      faceSlimWarp(outCtx, cw, ch, landmarks, faceCenter, faceWidth, 0.1, 0.07);
 
       // 7. 코 단축
       const underEye = avgPoint([145, 159, 374, 386]);
