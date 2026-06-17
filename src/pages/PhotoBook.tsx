@@ -6,6 +6,8 @@ import photoBookImage from "../assets/photoBook.png";
 import FullScreenBackground from "../components/FullScreenBackground";
 import { ManitoText } from "../components/PikuraText";
 
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+
 type PhotoBookEntry = {
   id: string;
   photo: string;
@@ -23,8 +25,6 @@ type Slot = {
   memoHeight: number;
 };
 
-const STORAGE_KEY = "mikuraPhotoBookPhotos";
-const PENDING_STORAGE_KEY = "mikuraPendingPhotoBookEntry";
 const PAGE_SIZE = 4;
 
 const SLOTS: Slot[] = [
@@ -36,9 +36,11 @@ const SLOTS: Slot[] = [
 
 function PhotoBook() {
   const navigate = useNavigate();
-  const initialEntries = useMemo(() => getPhotoBookEntries(), []);
-  const [entries, setEntries] = useState<PhotoBookEntry[]>(initialEntries);
-  const [pageIndex, setPageIndex] = useState(() => Math.max(0, Math.ceil(initialEntries.length / PAGE_SIZE) - 1));
+  const [entries, setEntries] = useState<PhotoBookEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
+
   const pages = useMemo(() => chunkEntries(entries), [entries]);
   const safePageIndex = Math.min(pageIndex, Math.max(0, pages.length - 1));
   const visibleEntries = pages[safePageIndex] ?? [];
@@ -46,25 +48,56 @@ function PhotoBook() {
   const canGoNext = safePageIndex < pages.length - 1;
 
   useEffect(() => {
-    if (pageIndex !== safePageIndex) {
-      setPageIndex(safePageIndex);
-    }
+    if (pageIndex !== safePageIndex) setPageIndex(safePageIndex);
   }, [pageIndex, safePageIndex]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadEntries() {
+      try {
+        const res = await fetch(`${API_BASE}/api/photobook`);
+        if (!res.ok) throw new Error("조회 실패");
+        const data: Array<{ id: string; image_url: string; memo: string; created_at: string }> = await res.json();
+        if (!cancelled) {
+          const loaded = data.map((row) => ({
+            id: row.id,
+            photo: row.image_url,
+            memo: row.memo,
+            createdAt: row.created_at,
+          }));
+          setEntries(loaded);
+          setPageIndex(Math.max(0, Math.ceil(loaded.length / PAGE_SIZE) - 1));
+        }
+      } catch {
+        // 로드 실패 시 빈 목록 유지
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadEntries();
+    return () => { cancelled = true; };
+  }, []);
+
   function handleMemoChange(id: string, memo: string) {
-    setEntries((currentEntries) =>
-      currentEntries.map((entry) => (entry.id === id ? { ...entry, memo } : entry)),
-    );
+    setEntries((current) => current.map((e) => (e.id === id ? { ...e, memo } : e)));
   }
 
-  function handleSave() {
-    savePhotoBookEntries(entries);
-    sessionStorage.removeItem(PENDING_STORAGE_KEY);
+  async function handleSave() {
+    await Promise.all(
+      entries.map((entry) =>
+        fetch(`${API_BASE}/api/photobook/${entry.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memo: entry.memo }),
+        })
+      )
+    );
     navigate("/");
   }
 
   function handleBack() {
-    sessionStorage.removeItem(PENDING_STORAGE_KEY);
     navigate(-1);
   }
 
@@ -75,12 +108,12 @@ function PhotoBook() {
       <BookStage>
         <BookImage src={photoBookImage} alt="" />
 
-        {visibleEntries.map((entry, index) => {
+        {!loading && visibleEntries.map((entry, index) => {
           const slot = SLOTS[index];
 
           return (
             <PhotoBookSlot key={entry.id}>
-              <SlotPhoto $slot={slot}>
+              <SlotPhoto $slot={slot} onClick={() => setLightboxPhoto(entry.photo)}>
                 <PhotoImage src={entry.photo} alt="포토북 사진" />
               </SlotPhoto>
               <MemoGroup $slot={slot}>
@@ -97,7 +130,8 @@ function PhotoBook() {
           );
         })}
 
-        {entries.length === 0 ? <EmptyText>아직 저장된 프리쿠라가 없어요</EmptyText> : null}
+        {!loading && entries.length === 0 ? <EmptyText>아직 저장된 프리쿠라가 없어요</EmptyText> : null}
+        {loading ? <EmptyText>불러오는 중…</EmptyText> : null}
 
         <PageTurnButton
           type="button"
@@ -125,100 +159,30 @@ function PhotoBook() {
       <BottomButton type="button" $side="right" onClick={handleSave}>
         저장하기
       </BottomButton>
+
+      {lightboxPhoto && (
+        <LightboxOverlay onClick={() => setLightboxPhoto(null)}>
+          <LightboxImage src={lightboxPhoto} alt="확대 사진" onClick={(e) => e.stopPropagation()} />
+          <LightboxClose onClick={() => setLightboxPhoto(null)}>✕</LightboxClose>
+        </LightboxOverlay>
+      )}
     </FullScreenBackground>
   );
 }
 
 export default PhotoBook;
 
-function getPhotoBookEntries() {
-  try {
-    const rawEntries = sessionStorage.getItem(STORAGE_KEY);
-    const parsedEntries = rawEntries ? JSON.parse(rawEntries) : [];
-
-    if (!Array.isArray(parsedEntries)) {
-      return [];
-    }
-
-    const entries = parsedEntries.flatMap((entry, index): PhotoBookEntry[] => {
-      if (typeof entry === "string" && entry.startsWith("data:image/")) {
-        return [
-          {
-            id: `legacy-${index}-${Date.now()}`,
-            photo: entry,
-            memo: "",
-            createdAt: new Date().toISOString(),
-          },
-        ];
-      }
-
-      if (isPhotoBookEntry(entry)) {
-        return [entry];
-      }
-
-      return [];
-    });
-    const pendingEntry = getPendingPhotoBookEntry();
-
-    if (pendingEntry && !entries.some((entry) => entry.id === pendingEntry.id)) {
-      return [...entries, pendingEntry];
-    }
-
-    return entries;
-  } catch {
-    const pendingEntry = getPendingPhotoBookEntry();
-
-    return pendingEntry ? [pendingEntry] : [];
-  }
-}
-
-function getPendingPhotoBookEntry() {
-  try {
-    const rawEntry = sessionStorage.getItem(PENDING_STORAGE_KEY);
-    const pendingEntry = rawEntry ? JSON.parse(rawEntry) : null;
-
-    return isPhotoBookEntry(pendingEntry) ? pendingEntry : null;
-  } catch {
-    return null;
-  }
-}
-
-function isPhotoBookEntry(entry: unknown): entry is PhotoBookEntry {
-  return (
-    typeof entry === "object" &&
-    entry !== null &&
-    "id" in entry &&
-    "photo" in entry &&
-    "memo" in entry &&
-    "createdAt" in entry &&
-    typeof entry.id === "string" &&
-    typeof entry.photo === "string" &&
-    typeof entry.memo === "string" &&
-    typeof entry.createdAt === "string"
-  );
-}
-
-function savePhotoBookEntries(entries: PhotoBookEntry[]) {
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-}
-
 function chunkEntries(entries: PhotoBookEntry[]) {
   const chunks: PhotoBookEntry[][] = [];
-
   for (let index = 0; index < entries.length; index += PAGE_SIZE) {
     chunks.push(entries.slice(index, index + PAGE_SIZE));
   }
-
   return chunks.length > 0 ? chunks : [[]];
 }
 
 function formatDate(date: string) {
   const parsedDate = new Date(date);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return "";
-  }
-
+  if (Number.isNaN(parsedDate.getTime())) return "";
   return `${parsedDate.getFullYear()}.${String(parsedDate.getMonth() + 1).padStart(2, "0")}.${String(
     parsedDate.getDate(),
   ).padStart(2, "0")}`;
@@ -231,10 +195,9 @@ const TitleText = styled(ManitoText)`
   z-index: 3;
   margin: 0;
   transform: translateX(-50%);
-  color: #ff87ba;
-  text-shadow: 0 0 8px #f6a8dc;
-  -webkit-text-stroke-width: 5px;
-  -webkit-text-stroke-color: #fff;
+  text-shadow: 0 0 9.2px #f6a8dc;
+  -webkit-text-stroke-width: 6px;
+  -webkit-text-stroke-color: #f175a5;
   font-size: clamp(30px, 3.1vw, 46px);
   white-space: nowrap;
 `;
@@ -274,6 +237,7 @@ const SlotPhoto = styled.div<{ $slot: Slot }>`
   width: ${({ $slot }) => $slot.width}%;
   aspect-ratio: 285 / 229;
   place-items: center;
+  cursor: pointer;
 `;
 
 const PhotoImage = styled.img`
@@ -332,9 +296,9 @@ const EmptyText = styled(ManitoText)`
   display: grid;
   place-items: center;
   margin: 0;
-  color: #ff87ba;
-  -webkit-text-stroke-width: 4px;
-  -webkit-text-stroke-color: #fff;
+  text-shadow: 0 0 9.2px #f6a8dc;
+  -webkit-text-stroke-width: 6px;
+  -webkit-text-stroke-color: #f175a5;
   font-size: clamp(26px, 3vw, 50px);
 `;
 
@@ -376,4 +340,43 @@ const BottomButton = styled.button<{ $side: "left" | "right" }>`
   font-size: 20px;
   box-shadow: 0 5px 0 rgba(255, 181, 216, 0.28);
   cursor: pointer;
+`;
+
+const LightboxOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.72);
+`;
+
+const LightboxImage = styled.img`
+  max-width: min(86vw, 700px);
+  max-height: 82vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+  user-select: none;
+  -webkit-user-drag: none;
+`;
+
+const LightboxClose = styled.button`
+  position: fixed;
+  top: 24px;
+  right: 32px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 28px;
+  line-height: 1;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.32);
+  }
 `;

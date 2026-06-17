@@ -60,20 +60,15 @@ function CompletedPhoto() {
 
   const handleAddToPhotoBook = async () => {
     if (completedPhoto) {
-      const photoBookPhoto = await createPhotoBookPhoto(completedPhoto);
-      const nextEntry = {
-        id: uploadedIdRef.current ?? `photo-book-${Date.now()}`,
-        photo: photoBookPhoto,
-        memo: "",
-        createdAt: new Date().toISOString(),
-      };
-
       try {
-        sessionStorage.setItem("mikuraPendingPhotoBookEntry", JSON.stringify(nextEntry));
+        const photoBookPhoto = await createPhotoBookPhoto(completedPhoto);
+        await fetch(`${API_BASE}/api/photobook`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageData: photoBookPhoto }),
+        });
       } catch (error) {
-        console.warn("Failed to prepare photo book entry, retrying compressed image", error);
-        const smallerPhoto = await createPhotoBookPhoto(completedPhoto, 720, 0.78);
-        sessionStorage.setItem("mikuraPendingPhotoBookEntry", JSON.stringify({ ...nextEntry, photo: smallerPhoto }));
+        console.warn("포토북 저장 실패:", error);
       }
     }
 
