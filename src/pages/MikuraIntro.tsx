@@ -125,7 +125,7 @@ const GuideButton = styled(BaseButton)`
 `;
 
 const PhotoBookButton = styled(BaseButton)`
-  bottom: 14%;
+  bottom: 11%;
 
   & > img {
     width: 70%;

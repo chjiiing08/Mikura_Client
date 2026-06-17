@@ -17,6 +17,7 @@ export default function SelectPhoto() {
     Array.from({ length: TOTAL_SLOT_COUNT }, () => null),
   );
   const selectedSlotIndex = selectedPhotos.findIndex((photo) => !photo);
+  const isSelectionComplete = selectedPhotos.every(isPhotoDataUrl);
   const currentSlotNumber =
     selectedSlotIndex === -1 ? TOTAL_SLOT_COUNT : selectedSlotIndex + 1;
 
@@ -40,6 +41,11 @@ export default function SelectPhoto() {
   }
 
   function handleNext() {
+    if (!isSelectionComplete) {
+      alert("사진 4개를 모두 선택해주세요!");
+      return;
+    }
+
     const confirmedPhotos = selectedPhotos.filter(isPhotoDataUrl);
     sessionStorage.setItem("mikuraSelectedPhotos", JSON.stringify(confirmedPhotos));
     navigate("/decophoto");
