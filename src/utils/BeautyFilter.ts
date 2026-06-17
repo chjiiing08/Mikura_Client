@@ -9,28 +9,6 @@ const MODEL_URL =
 
 type Point = { x: number; y: number };
 
-// ── 피부톤 보정 ──────────────────────────────────────────────────────
-const applyBeautyTone = (
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-) => {
-  const imageData = ctx.getImageData(0, 0, width, height);
-  const data = imageData.data;
-  for (let i = 0; i < data.length; i += 4) {
-    let r = data[i] + 18;
-    let g = data[i + 1] + 16;
-    let b = data[i + 2] + 14;
-    r = r * 0.86 + 255 * 0.14;
-    g = g * 0.88 + 250 * 0.12;
-    b = b * 0.88 + 248 * 0.12;
-    data[i] = Math.min(255, r);
-    data[i + 1] = Math.min(255, g);
-    data[i + 2] = Math.min(255, b);
-  }
-  ctx.putImageData(imageData, 0, 0);
-};
-
 // ── 코 슬림 (양쪽 콧볼을 중심으로 당기기) ───────────────────────────
 const noseSlimWarp = (
   ctx: CanvasRenderingContext2D,
@@ -381,13 +359,10 @@ export class BeautyFilter {
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, cw, ch);
     ctx.restore();
 
-    // 2. 피부톤 보정
-    applyBeautyTone(ctx, cw, ch);
-
-    // 3. 랜드마크 감지
+    // 2. 랜드마크 감지
     const result = landmarker.detectForVideo(sourceCanvas, performance.now());
 
-    // 4. glfx로 눈 확대
+    // 3. glfx로 눈 확대
     const texture = fxCanvas.texture(sourceCanvas);
     fxCanvas.draw(texture);
 
@@ -421,7 +396,7 @@ export class BeautyFilter {
       const rightNose = avgPoint([343, 327, 358]);
       const noseCenter = avgPoint([1, 2, 168]);
 
-      // 5. 코 슬림
+      // 4. 코 슬림
       noseSlimWarp(
         outCtx,
         cw,
@@ -439,10 +414,10 @@ export class BeautyFilter {
       }));
       const faceCenter = avgPoint([1, 168, 197]);
 
-      // 6. 얼굴형/턱 슬림 (Delaunay 삼각분할)
+      // 5. 얼굴형/턱 슬림 (Delaunay 삼각분할)
       faceSlimWarp(outCtx, cw, ch, landmarks, faceCenter, faceWidth, 0.1, 0.07);
 
-      // 7. 코 단축
+      // 6. 코 단축
       const underEye = avgPoint([145, 159, 374, 386]);
       const noseTip = { x: p[1].x * cw, y: p[1].y * ch };
       const midFaceCenter = {

@@ -14,6 +14,7 @@ const COUNTDOWN_START = 5;
 const COUNTDOWN_END = 1;
 const CAPTURE_WIDTH = 1231;
 const CAPTURE_HEIGHT = 714;
+const SHUTTER_MOTION_DURATION = 520;
 
 function CameraPage() {
   const navigate = useNavigate();
@@ -24,12 +25,16 @@ function CameraPage() {
 
   const capturedPhotosRef = useRef<string[]>([]);
   const countdownRef = useRef(COUNTDOWN_START);
+  const shutterTimeoutRef = useRef<number | null>(null);
+  const navigationTimeoutRef = useRef<number | null>(null);
 
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
   const [capturedCount, setCapturedCount] = useState(1);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isMaskReady, setIsMaskReady] = useState(false);
   const [isBeautyReady, setIsBeautyReady] = useState(false);
+  const [shutterMotionKey, setShutterMotionKey] = useState(0);
+  const [isShutterMotionActive, setIsShutterMotionActive] = useState(false);
 
   const isReady = isCameraReady && isMaskReady && isBeautyReady;
 
@@ -84,7 +89,7 @@ function CameraPage() {
   useEffect(() => {
     let frameId = 0;
 
-    const renderBeauty = () => {
+    const renderCamera = () => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const beautyFilter = beautyFilterRef.current;
@@ -103,14 +108,39 @@ function CameraPage() {
         beautyFilter.process(video, canvas);
       }
 
-      frameId = window.requestAnimationFrame(renderBeauty);
+      frameId = window.requestAnimationFrame(renderCamera);
     };
 
-    renderBeauty();
+    renderCamera();
 
     return () => {
       window.cancelAnimationFrame(frameId);
     };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (shutterTimeoutRef.current) {
+        window.clearTimeout(shutterTimeoutRef.current);
+      }
+
+      if (navigationTimeoutRef.current) {
+        window.clearTimeout(navigationTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const playShutterMotion = useCallback(() => {
+    if (shutterTimeoutRef.current) {
+      window.clearTimeout(shutterTimeoutRef.current);
+    }
+
+    setShutterMotionKey((currentKey) => currentKey + 1);
+    setIsShutterMotionActive(true);
+
+    shutterTimeoutRef.current = window.setTimeout(() => {
+      setIsShutterMotionActive(false);
+    }, SHUTTER_MOTION_DURATION);
   }, []);
 
   const capturePhoto = useCallback(() => {
@@ -125,6 +155,8 @@ function CameraPage() {
       return;
     }
 
+    playShutterMotion();
+
     const photo = canvas.toDataURL("image/jpeg", 0.85);
     const nextPhotos = [...capturedPhotosRef.current, photo];
     capturedPhotosRef.current = nextPhotos;
@@ -137,12 +169,14 @@ function CameraPage() {
 
     if (nextPhotos.length >= TOTAL_PHOTO_COUNT) {
       setCapturedCount(TOTAL_PHOTO_COUNT);
-      navigate("/loading2");
+      navigationTimeoutRef.current = window.setTimeout(() => {
+        navigate("/loading2");
+      }, SHUTTER_MOTION_DURATION);
       return;
     }
 
     setCapturedCount(nextPhotos.length + 1);
-  }, [navigate]);
+  }, [navigate, playShutterMotion]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -201,6 +235,12 @@ function CameraPage() {
           {capturedCount}/{TOTAL_PHOTO_COUNT}
         </PhotoProgressText>
       </CameraFrame>
+
+      <ShutterMotion
+        key={shutterMotionKey}
+        $isActive={isShutterMotionActive}
+        aria-hidden="true"
+      />
 
       {!isReady && <Loading />}
     </FullScreenBackground>
@@ -299,6 +339,74 @@ const PhotoProgressText = styled(MulmaruText)`
     0 3px 0 #f175a5;
   -webkit-text-stroke-width: 2px;
   -webkit-text-stroke-color: #f175a5;
+`;
+
+const ShutterMotion = styled.div<{ $isActive: boolean }>`
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: #fff;
+  opacity: ${({ $isActive }) => ($isActive ? 1 : 0)};
+  pointer-events: none;
+
+  ${({ $isActive }) =>
+    $isActive
+      ? `
+        animation: shutter-flash ${SHUTTER_MOTION_DURATION}ms ease-out both;
+      `
+      : ""}
+
+  &::before {
+    position: absolute;
+    inset: -18%;
+    content: "";
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 50% 44%, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.88) 32%, rgba(255, 226, 243, 0.42) 64%, rgba(255, 226, 243, 0) 100%);
+    mix-blend-mode: screen;
+
+    ${({ $isActive }) =>
+      $isActive
+        ? `
+          animation: shutter-bloom ${SHUTTER_MOTION_DURATION}ms ease-out both;
+        `
+        : ""}
+  }
+
+  @keyframes shutter-flash {
+    0% {
+      opacity: 0;
+    }
+
+    8% {
+      opacity: 0.9;
+    }
+
+    24% {
+      opacity: 0.62;
+    }
+
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes shutter-bloom {
+    0% {
+      transform: scale(0.92);
+      filter: blur(0);
+    }
+
+    22% {
+      transform: scale(1);
+      filter: blur(1px);
+    }
+
+    100% {
+      transform: scale(1.08);
+      filter: blur(8px);
+    }
+  }
 `;
 
 const GuideText = styled(ManitoText)<{ $isReady: boolean }>`
