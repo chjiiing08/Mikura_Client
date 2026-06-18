@@ -292,14 +292,29 @@ function getInitialImageStickerBox(fileName: string, size: StickerSize) {
   return { width: baseSize * imageScale, height: baseSize * imageScale };
 }
 
-function getInitialTextStickerBox(sticker: string, size: StickerSize) {
+function measureStickerTextWidth(text: string, fontFamily: string, fontSize: number): number {
+  try {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return 0;
+    ctx.font = `500 ${fontSize}px ${fontFamily}`;
+    const lines = text.split("\n");
+    return Math.max(...lines.map((line) => ctx.measureText(line.replace(/\t/g, "    ")).width));
+  } catch {
+    return 0;
+  }
+}
+
+function getInitialTextStickerBox(sticker: string, size: StickerSize, fontFamily: string) {
   const baseSize = STICKER_INITIAL_BOX_SIZE[size];
   const lineCount = sticker.split("\n").length;
-  const longestLine = sticker.split("\n").reduce((longest, line) => Math.max(longest, line.length), 1);
+  const height = Math.max(baseSize * 0.34, lineCount * baseSize * 0.34);
+  const fontSize = Math.max(10, height * 0.72);
+  const measured = measureStickerTextWidth(sticker, fontFamily, fontSize);
 
   return {
-    width: Math.max(baseSize * 0.7, longestLine * baseSize * 0.24),
-    height: Math.max(baseSize * 0.34, lineCount * baseSize * 0.34),
+    width: measured > 4 ? Math.ceil(measured) + 8 : Math.max(baseSize * 0.5, lineCount > 1 ? baseSize * 0.8 : baseSize * 0.5),
+    height,
   };
 }
 
@@ -1200,7 +1215,7 @@ export default function DecoPhoto() {
     const initialBox =
       activeStickerGroup.stickerKind === "image"
         ? getInitialImageStickerBox(stickerFileName, placedStickerSize)
-        : getInitialTextStickerBox(sticker, placedStickerSize);
+        : getInitialTextStickerBox(sticker, placedStickerSize, STICKER_FONT_FAMILY[activeStickerGroup.stickerFont]);
     commitActiveDecorationChange((decoration) => ({
       ...decoration,
       maxStickerZIndex: nextZIndex,
