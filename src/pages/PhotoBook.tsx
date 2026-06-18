@@ -280,7 +280,7 @@ const MemoBox = styled.textarea<{ $editable: boolean }>`
   cursor: ${({ $editable }) => ($editable ? "text" : "default")};
 
   &::placeholder {
-    color: #aaa;
+    color: ${({ $editable }) => ($editable ? "#aaa" : "transparent")};
     opacity: 1;
   }
 `;
