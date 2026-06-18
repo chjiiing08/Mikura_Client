@@ -38,8 +38,41 @@ function CameraPage() {
   const [isShutterMotionActive, setIsShutterMotionActive] = useState(false);
   const [beautyIntensity, setBeautyIntensity] = useState(100);
   const beautyIntensityRef = useRef(1);
+  const isDraggingGaugeRef = useRef(false);
+  const gaugeRef = useRef<SVGSVGElement | null>(null);
 
   const isReady = isCameraReady && isMaskReady && isBeautyReady;
+
+  function updateGaugeFromPointer(clientX: number, clientY: number) {
+    const svg = gaugeRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const dx = clientX - (rect.left + rect.width / 2);
+    const dy = clientY - (rect.top + rect.height / 2);
+    let angle = Math.atan2(dx, -dy) * (180 / Math.PI);
+    if (angle < 0) angle += 360;
+    const val = Math.round(angle / 360 * 100);
+    setBeautyIntensity(val);
+    beautyIntensityRef.current = val / 100;
+  }
+
+  function handleGaugePointerDown(e: React.PointerEvent<SVGSVGElement>) {
+    isDraggingGaugeRef.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    updateGaugeFromPointer(e.clientX, e.clientY);
+  }
+
+  function handleGaugePointerMove(e: React.PointerEvent<SVGSVGElement>) {
+    if (!isDraggingGaugeRef.current) return;
+    updateGaugeFromPointer(e.clientX, e.clientY);
+  }
+
+  function handleGaugePointerUp(e: React.PointerEvent<SVGSVGElement>) {
+    isDraggingGaugeRef.current = false;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  }
 
   useEffect(() => {
     const filter = new BeautyFilter();
@@ -255,17 +288,16 @@ function CameraPage() {
 
       <BeautySliderWrap $isReady={isReady}>
         <BeautySliderLabel>보정</BeautySliderLabel>
-        <BeautyAdjustBtn
-          type="button"
-          aria-label="보정 강도 증가"
-          onClick={() => {
-            const val = Math.min(100, beautyIntensity + 10);
-            setBeautyIntensity(val);
-            beautyIntensityRef.current = val / 100;
-          }}
-        >▲</BeautyAdjustBtn>
         <BeautySliderBox>
-          <svg width="120" height="120" viewBox="0 0 120 120" style={{ display: "block" }}>
+          <svg
+            ref={gaugeRef}
+            width="130" height="130" viewBox="0 0 130 130"
+            style={{ display: "block", cursor: "pointer", touchAction: "none" }}
+            onPointerDown={handleGaugePointerDown}
+            onPointerMove={handleGaugePointerMove}
+            onPointerUp={handleGaugePointerUp}
+            onPointerCancel={handleGaugePointerUp}
+          >
             <defs>
               <filter id="beauty-glow" x="-60%" y="-60%" width="220%" height="220%">
                 <feGaussianBlur stdDeviation="5" result="blur" />
@@ -275,36 +307,41 @@ function CameraPage() {
                 </feMerge>
               </filter>
             </defs>
+            {/* 투명 원 (터치 영역 확장) */}
+            <circle cx="65" cy="65" r="65" fill="transparent" />
+            {/* 배경 링 */}
             <circle
-              cx="60" cy="60" r="52"
+              cx="65" cy="65" r="52"
               fill="none"
               stroke="rgba(255,255,255,0.22)"
-              strokeWidth="9"
+              strokeWidth="11"
               strokeLinecap="round"
             />
+            {/* 진행 링 */}
             <circle
-              cx="60" cy="60" r="52"
+              cx="65" cy="65" r="52"
               fill="none"
               stroke="rgba(255,255,255,0.95)"
-              strokeWidth="9"
+              strokeWidth="11"
               strokeLinecap="round"
               strokeDasharray={2 * Math.PI * 52}
               strokeDashoffset={2 * Math.PI * 52 * (1 - beautyIntensity / 100)}
-              transform="rotate(-90 60 60)"
+              transform="rotate(-90 65 65)"
               filter="url(#beauty-glow)"
             />
+            {/* 현재 위치 핸들 */}
+            {beautyIntensity > 0 && (
+              <circle
+                cx={65 + 52 * Math.cos((-Math.PI / 2) + (beautyIntensity / 100) * 2 * Math.PI)}
+                cy={65 + 52 * Math.sin((-Math.PI / 2) + (beautyIntensity / 100) * 2 * Math.PI)}
+                r="9"
+                fill="white"
+                filter="url(#beauty-glow)"
+              />
+            )}
           </svg>
           <BeautyKitty src={gayPng} alt="보정" />
         </BeautySliderBox>
-        <BeautyAdjustBtn
-          type="button"
-          aria-label="보정 강도 감소"
-          onClick={() => {
-            const val = Math.max(0, beautyIntensity - 10);
-            setBeautyIntensity(val);
-            beautyIntensityRef.current = val / 100;
-          }}
-        >▼</BeautyAdjustBtn>
         <BeautySliderValue>{beautyIntensity}%</BeautySliderValue>
       </BeautySliderWrap>
 
@@ -544,26 +581,6 @@ const BeautyKitty = styled.img`
   filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.7));
 `;
 
-const BeautyAdjustBtn = styled.button`
-  display: grid;
-  width: 52px;
-  height: 52px;
-  place-items: center;
-  border: none;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.22);
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 20px;
-  line-height: 1;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
-  cursor: pointer;
-  transition: background 120ms ease, transform 80ms ease;
-
-  &:active {
-    background: rgba(255, 255, 255, 0.42);
-    transform: scale(0.92);
-  }
-`;
 
 const MaskImage = styled.img`
   position: absolute;
