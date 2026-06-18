@@ -319,7 +319,7 @@ export class BeautyFilter {
     this._ready = true;
   }
 
-  process(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
+  process(video: HTMLVideoElement, canvas: HTMLCanvasElement, intensity = 1) {
     if (video.readyState < 2 || video.videoWidth === 0) return;
 
     const { fxCanvas, sourceCanvas, landmarker } = this;
@@ -383,8 +383,8 @@ export class BeautyFilter {
         const leftEye = avgPoint(p, [33, 133, 159, 145, 160, 158, 153, 144]);
         const rightEye = avgPoint(p, [362, 263, 386, 374, 387, 385, 380, 373]);
         fxChain = fxChain
-          .bulgePinch(leftEye.x, leftEye.y, faceWidth * 0.18, 0.28)
-          .bulgePinch(rightEye.x, rightEye.y, faceWidth * 0.18, 0.28);
+          .bulgePinch(leftEye.x, leftEye.y, faceWidth * 0.18, 0.28 * intensity)
+          .bulgePinch(rightEye.x, rightEye.y, faceWidth * 0.18, 0.28 * intensity);
       });
       fxChain.update();
 
@@ -399,10 +399,10 @@ export class BeautyFilter {
         const leftNose = avgPoint(p, [114, 98, 129]);
         const rightNose = avgPoint(p, [343, 327, 358]);
         const noseCenter = avgPoint(p, [1, 2, 168]);
-        noseSlimWarp(outCtx, cw, ch, leftNose, rightNose, noseCenter, faceWidth, 0.12);
+        noseSlimWarp(outCtx, cw, ch, leftNose, rightNose, noseCenter, faceWidth, 0.12 * intensity);
 
         const landmarks = p.map((point) => ({ x: point.x * cw, y: point.y * ch }));
-        faceSlimWarp(outCtx, cw, ch, landmarks, faceCenter, faceWidth, 0.1, 0.07);
+        faceSlimWarp(outCtx, cw, ch, landmarks, faceCenter, faceWidth, 0.1 * intensity, 0.07 * intensity);
 
         const underEye = avgPoint(p, [145, 159, 374, 386]);
         const noseTip = { x: p[1].x * cw, y: p[1].y * ch };
@@ -410,7 +410,7 @@ export class BeautyFilter {
           x: noseTip.x,
           y: underEye.y + (noseTip.y - underEye.y) * 0.65,
         };
-        midFaceWarp(outCtx, cw, ch, midFaceCenter, faceWidth, 0.15);
+        midFaceWarp(outCtx, cw, ch, midFaceCenter, faceWidth, 0.15 * intensity);
       });
     } else {
       fxCanvas.update();

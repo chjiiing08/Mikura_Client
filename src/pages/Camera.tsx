@@ -35,6 +35,8 @@ function CameraPage() {
   const [isBeautyReady, setIsBeautyReady] = useState(false);
   const [shutterMotionKey, setShutterMotionKey] = useState(0);
   const [isShutterMotionActive, setIsShutterMotionActive] = useState(false);
+  const [beautyIntensity, setBeautyIntensity] = useState(100);
+  const beautyIntensityRef = useRef(1);
 
   const isReady = isCameraReady && isMaskReady && isBeautyReady;
 
@@ -119,7 +121,7 @@ function CameraPage() {
         if (canvas.width !== CAPTURE_WIDTH) canvas.width = CAPTURE_WIDTH;
         if (canvas.height !== CAPTURE_HEIGHT) canvas.height = CAPTURE_HEIGHT;
 
-        beautyFilter.process(video, canvas);
+        beautyFilter.process(video, canvas, beautyIntensityRef.current);
       }
 
       frameId = window.requestAnimationFrame(renderCamera);
@@ -249,6 +251,23 @@ function CameraPage() {
           {capturedCount}/{TOTAL_PHOTO_COUNT}
         </PhotoProgressText>
       </CameraFrame>
+
+      <BeautySliderWrap $isReady={isReady}>
+        <BeautySliderLabel>보정</BeautySliderLabel>
+        <BeautySlider
+          type="range"
+          min="0"
+          max="100"
+          value={beautyIntensity}
+          aria-label="보정 강도"
+          onChange={(e) => {
+            const val = Number(e.target.value);
+            setBeautyIntensity(val);
+            beautyIntensityRef.current = val / 100;
+          }}
+        />
+        <BeautySliderValue>{beautyIntensity}%</BeautySliderValue>
+      </BeautySliderWrap>
 
       <ShutterMotion
         key={shutterMotionKey}
@@ -435,6 +454,80 @@ const GuideText = styled(ManitoText)<{ $isReady: boolean }>`
   -webkit-text-stroke-color: #F175A5;
   font-size: 60px;
   opacity: ${({ $isReady }) => ($isReady ? 1 : 0)};
+`;
+
+const BeautySliderWrap = styled.div<{ $isReady: boolean }>`
+  position: absolute;
+  top: 50%;
+  right: 4%;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transform: translateY(-50%);
+  opacity: ${({ $isReady }) => ($isReady ? 1 : 0)};
+  transition: opacity 300ms ease;
+`;
+
+const BeautySliderLabel = styled(MulmaruText)`
+  color: rgba(253, 49, 127, 0.72);
+  font-size: 18px;
+  text-shadow: 0 0 6px #ff7dbd;
+  -webkit-text-stroke-width: 1px;
+  -webkit-text-stroke-color: #fff;
+  white-space: nowrap;
+`;
+
+const BeautySliderValue = styled(MulmaruText)`
+  color: rgba(253, 49, 127, 0.6);
+  font-size: 15px;
+  text-shadow: 0 0 4px #ff7dbd;
+  -webkit-text-stroke-width: 1px;
+  -webkit-text-stroke-color: #fff;
+`;
+
+const BeautySlider = styled.input`
+  -webkit-appearance: slider-vertical;
+  appearance: slider-vertical;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 36px;
+  height: clamp(140px, 18vh, 240px);
+  cursor: pointer;
+  background: transparent;
+
+  &::-webkit-slider-runnable-track {
+    width: 6px;
+    border-radius: 3px;
+    background: rgba(255, 175, 215, 0.45);
+  }
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 38%, #ff8ec8, #ff3fa0);
+    box-shadow: 0 2px 8px rgba(255, 80, 160, 0.45), 0 0 0 3px rgba(255, 255, 255, 0.7);
+    cursor: grab;
+  }
+
+  &::-moz-range-track {
+    width: 6px;
+    border-radius: 3px;
+    background: rgba(255, 175, 215, 0.45);
+  }
+
+  &::-moz-range-thumb {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 38%, #ff8ec8, #ff3fa0);
+    box-shadow: 0 2px 8px rgba(255, 80, 160, 0.45), 0 0 0 3px rgba(255, 255, 255, 0.7);
+    cursor: grab;
+  }
 `;
 
 const MaskImage = styled.img`
