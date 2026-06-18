@@ -254,18 +254,51 @@ function CameraPage() {
 
       <BeautySliderWrap $isReady={isReady}>
         <BeautySliderLabel>보정</BeautySliderLabel>
-        <BeautySlider
-          type="range"
-          min="0"
-          max="100"
-          value={beautyIntensity}
-          aria-label="보정 강도"
-          onChange={(e) => {
-            const val = Number(e.target.value);
-            setBeautyIntensity(val);
-            beautyIntensityRef.current = val / 100;
-          }}
-        />
+        <BeautySliderBox>
+          <svg width="70" height="220" viewBox="0 0 70 220" style={{ display: "block", overflow: "visible" }}>
+            <defs>
+              <filter id="beauty-glow" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="7" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <clipPath id="beauty-fill">
+                <rect x="0" y={220 * (1 - beautyIntensity / 100)} width="70" height={220 * (beautyIntensity / 100)} />
+              </clipPath>
+            </defs>
+            {/* 배경 트랙 (어둡게) */}
+            <polygon points="5,0 65,0 38,220 32,220" fill="rgba(255,255,255,0.14)" />
+            {/* 채워진 부분 (밝게 + 글로우) */}
+            <polygon
+              points="5,0 65,0 38,220 32,220"
+              fill="rgba(255,255,255,0.92)"
+              clipPath="url(#beauty-fill)"
+              filter="url(#beauty-glow)"
+            />
+            {/* 썸 원 (크기도 값에 따라 증가) */}
+            <circle
+              cx="35"
+              cy={220 * (1 - beautyIntensity / 100)}
+              r={10 + 7 * (beautyIntensity / 100)}
+              fill="white"
+              filter="url(#beauty-glow)"
+            />
+          </svg>
+          <BeautyHiddenInput
+            type="range"
+            min="0"
+            max="100"
+            value={beautyIntensity}
+            aria-label="보정 강도"
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              setBeautyIntensity(val);
+              beautyIntensityRef.current = val / 100;
+            }}
+          />
+        </BeautySliderBox>
         <BeautySliderValue>{beautyIntensity}%</BeautySliderValue>
       </BeautySliderWrap>
 
@@ -464,70 +497,46 @@ const BeautySliderWrap = styled.div<{ $isReady: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   transform: translateY(-50%);
   opacity: ${({ $isReady }) => ($isReady ? 1 : 0)};
   transition: opacity 300ms ease;
 `;
 
 const BeautySliderLabel = styled(MulmaruText)`
-  color: rgba(253, 49, 127, 0.72);
-  font-size: 18px;
-  text-shadow: 0 0 6px #ff7dbd;
-  -webkit-text-stroke-width: 1px;
-  -webkit-text-stroke-color: #fff;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 17px;
+  text-shadow:
+    0 0 8px rgba(255, 255, 255, 0.9),
+    0 0 18px rgba(255, 200, 230, 0.6);
   white-space: nowrap;
 `;
 
 const BeautySliderValue = styled(MulmaruText)`
-  color: rgba(253, 49, 127, 0.6);
-  font-size: 15px;
-  text-shadow: 0 0 4px #ff7dbd;
-  -webkit-text-stroke-width: 1px;
-  -webkit-text-stroke-color: #fff;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  text-shadow:
+    0 0 6px rgba(255, 255, 255, 0.8),
+    0 0 14px rgba(255, 200, 230, 0.5);
 `;
 
-const BeautySlider = styled.input`
-  -webkit-appearance: slider-vertical;
-  appearance: slider-vertical;
+const BeautySliderBox = styled.div`
+  position: relative;
+  width: 70px;
+  height: 220px;
+`;
+
+const BeautyHiddenInput = styled.input`
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
   writing-mode: vertical-lr;
   direction: rtl;
-  width: 36px;
-  height: clamp(140px, 18vh, 240px);
   cursor: pointer;
-  background: transparent;
-
-  &::-webkit-slider-runnable-track {
-    width: 6px;
-    border-radius: 3px;
-    background: rgba(255, 175, 215, 0.45);
-  }
-
-  &::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 38% 38%, #ff8ec8, #ff3fa0);
-    box-shadow: 0 2px 8px rgba(255, 80, 160, 0.45), 0 0 0 3px rgba(255, 255, 255, 0.7);
-    cursor: grab;
-  }
-
-  &::-moz-range-track {
-    width: 6px;
-    border-radius: 3px;
-    background: rgba(255, 175, 215, 0.45);
-  }
-
-  &::-moz-range-thumb {
-    width: 32px;
-    height: 32px;
-    border: none;
-    border-radius: 50%;
-    background: radial-gradient(circle at 38% 38%, #ff8ec8, #ff3fa0);
-    box-shadow: 0 2px 8px rgba(255, 80, 160, 0.45), 0 0 0 3px rgba(255, 255, 255, 0.7);
-    cursor: grab;
-  }
 `;
 
 const MaskImage = styled.img`
