@@ -878,7 +878,7 @@ export default function DecoPhoto() {
   const [selectedHue, setSelectedHue] = useState(326);
   const [colorTone, setColorTone] = useState(58);
   const [selectedColor, setSelectedColor] = useState(getToneColor(326, 58));
-  const [brushSize, setBrushSize] = useState(24);
+  const [brushSize, setBrushSize] = useState(12);
   const [brushType, setBrushType] = useState<BrushStyle>("basic");
   const [photoDecorations, setPhotoDecorations] = useState<PhotoDecoration[]>(() =>
     Array.from({ length: PHOTO_SLOT_COUNT }, createEmptyPhotoDecoration),
@@ -1581,8 +1581,8 @@ export default function DecoPhoto() {
                 <BrushSizeSlider
                   aria-label="브러쉬 굵기"
                   type="range"
-                  min="10"
-                  max="46"
+                  min="4"
+                  max="28"
                   value={brushSize}
                   onChange={(event) => setBrushSize(Number(event.target.value))}
                 />
