@@ -565,8 +565,8 @@ const BeautySliderValue = styled(MulmaruText)`
 
 const BeautySliderBox = styled.div`
   position: relative;
-  width: 120px;
-  height: 120px;
+  width: 130px;
+  height: 130px;
 `;
 
 const BeautyKitty = styled.img`
