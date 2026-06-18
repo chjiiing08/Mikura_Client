@@ -1,4 +1,4 @@
-import loadingIcon from "../assets/loadingIcon2.png";
+import loadingIcon from "../assets/lodingIcon2.png";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import LoadingView from "../components/LoadingView";

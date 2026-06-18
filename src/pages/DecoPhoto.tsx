@@ -354,14 +354,14 @@ function getAngle(centerX: number, centerY: number, pointerX: number, pointerY: 
 }
 
 function getToneColor(hue: number, tone: number) {
-  const lightness = tone < 50 ? 8 + tone * 0.84 : 50 + (tone - 50) * 0.92;
+  const lightness = tone < 50 ? tone * 1.0 : 50 + (tone - 50) * 0.92;
   const saturation = tone > 88 ? 100 - (tone - 88) * 5 : 100;
 
   return `hsl(${hue} ${Math.max(0, saturation)}% ${Math.min(96, lightness)}%)`;
 }
 
 function getToneGradient(hue: number) {
-  return `linear-gradient(90deg, #050005 0%, hsl(${hue} 100% 18%) 24%, hsl(${hue} 100% 50%) 55%, hsl(${hue} 100% 76%) 78%, hsl(${hue} 28% 96%) 100%)`;
+  return `linear-gradient(90deg, #000000 0%, hsl(${hue} 100% 18%) 24%, hsl(${hue} 100% 50%) 55%, hsl(${hue} 100% 76%) 78%, hsl(${hue} 28% 96%) 100%)`;
 }
 
 function getBrushConfig(style: BrushStyle) {

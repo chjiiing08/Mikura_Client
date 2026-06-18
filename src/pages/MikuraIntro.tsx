@@ -39,7 +39,7 @@ function MikuraIntro() {
         $delay="1s"
       />
 
-      <ButtonStack>
+      <ButtonStack>                                                                                                                                           
         <GuideButton img={txt1} onClick={() => navigate("/guide")} />
         <PhotoBookButton img={txt2} onClick={() => navigate("/photobook")} />
       </ButtonStack>
@@ -116,19 +116,20 @@ const Star = styled.img<{
 
 const ButtonStack = styled.div`
   position: absolute;
-  bottom: clamp(48px, 11vh, 118px);
+  bottom: clamp(80px, 45vh, 170px);
   left: 50%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(28px, 4vh, 54px);
+  gap: clamp(12px, 1.5vh, 16px);
   transform: translateX(-50%);
 `;
 
 const BaseButton = styled(PurikuraButton)`
   position: static;
-  width: clamp(220px, 25vw, 360px);
-  height: clamp(70px, 8vh, 85px);
+  width: clamp(220px, 25vw, 380px);
+  height: clamp(70px, 8vh, 70px);
+  border: none;
 `;
 
 const GuideButton = styled(BaseButton)`
