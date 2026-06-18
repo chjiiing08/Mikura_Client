@@ -227,6 +227,7 @@ const BookImage = styled.img`
 const PhotoBookSlot = styled.div`
   position: absolute;
   inset: 0;
+  pointer-events: none;
 `;
 
 const SlotPhoto = styled.div<{ $slot: Slot }>`
@@ -238,6 +239,7 @@ const SlotPhoto = styled.div<{ $slot: Slot }>`
   aspect-ratio: 285 / 229;
   place-items: center;
   cursor: pointer;
+  pointer-events: auto;
 `;
 
 const PhotoImage = styled.img`

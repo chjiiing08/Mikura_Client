@@ -15,6 +15,7 @@ function CompletedPhoto() {
 
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [qrError, setQrError] = useState(false);
+  const [savingToPhotoBook, setSavingToPhotoBook] = useState(false);
   const uploadedIdRef = useRef<string | null>(null);
 
   // 페이지 진입 시 사진 업로드 → QR 코드 생성
@@ -59,6 +60,9 @@ function CompletedPhoto() {
   };
 
   const handleAddToPhotoBook = async () => {
+    if (savingToPhotoBook) return;
+    setSavingToPhotoBook(true);
+
     if (completedPhoto) {
       try {
         const photoBookPhoto = await createPhotoBookPhoto(completedPhoto);
@@ -114,8 +118,8 @@ function CompletedPhoto() {
             <ActionButton type="button" onClick={handleFinish}>
               끝내기
             </ActionButton>
-            <ActionButton type="button" onClick={handleAddToPhotoBook}>
-              포토북에 넣기
+            <ActionButton type="button" onClick={handleAddToPhotoBook} disabled={savingToPhotoBook}>
+              {savingToPhotoBook ? "저장 중…" : "포토북에 넣기"}
             </ActionButton>
           </ButtonRow>
         </RightArea>
