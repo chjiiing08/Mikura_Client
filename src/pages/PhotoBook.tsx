@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import bg from "../assets/basicBg.png";
 import photoBookImage from "../assets/photoBook.png";
@@ -36,6 +36,8 @@ const SLOTS: Slot[] = [
 
 function PhotoBook() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const newEntryId = (location.state as { newEntryId?: string } | null)?.newEntryId ?? null;
   const [entries, setEntries] = useState<PhotoBookEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [pageIndex, setPageIndex] = useState(0);
@@ -118,6 +120,8 @@ function PhotoBook() {
                   placeholder="텍스트 입력"
                   rows={Math.max(1, entry.memo.split("\n").length)}
                   aria-label="포토북 메모"
+                  readOnly={entry.id !== newEntryId}
+                  $editable={entry.id === newEntryId}
                   onChange={(event) => handleMemoChange(entry.id, event.target.value)}
                 />
                 <DateText>{formatDate(entry.createdAt)}</DateText>
@@ -259,7 +263,7 @@ const MemoGroup = styled.div<{ $slot: Slot }>`
   pointer-events: auto;
 `;
 
-const MemoBox = styled.textarea`
+const MemoBox = styled.textarea<{ $editable: boolean }>`
   width: 100%;
   border: 0;
   padding: 0;
@@ -273,10 +277,11 @@ const MemoBox = styled.textarea`
   outline: none;
   overflow: hidden;
   field-sizing: content;
+  cursor: ${({ $editable }) => ($editable ? "text" : "default")};
 
   &::placeholder {
-    color: #30252b;
-    opacity: 0.9;
+    color: #aaa;
+    opacity: 1;
   }
 `;
 

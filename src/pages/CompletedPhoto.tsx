@@ -63,20 +63,26 @@ function CompletedPhoto() {
     if (savingToPhotoBook) return;
     setSavingToPhotoBook(true);
 
+    let newEntryId: string | null = null;
+
     if (completedPhoto) {
       try {
         const photoBookPhoto = await createPhotoBookPhoto(completedPhoto);
-        await fetch(`${API_BASE}/api/photobook`, {
+        const res = await fetch(`${API_BASE}/api/photobook`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ imageData: photoBookPhoto }),
         });
+        if (res.ok) {
+          const data = await res.json();
+          newEntryId = data.id ?? null;
+        }
       } catch (error) {
         console.warn("포토북 저장 실패:", error);
       }
     }
 
-    navigate("/photobook");
+    navigate("/photobook", { state: { newEntryId } });
   };
 
   return (
