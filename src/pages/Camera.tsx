@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import bg from "../assets/basicBg.png";
+import gayPng from "../assets/gay.png";
 import cameraClipMask from "../assets/cameraClipMask.png";
 import cameraMask from "../assets/cameraMask.png";
 import FullScreenBackground from "../components/FullScreenBackground";
@@ -255,29 +256,38 @@ function CameraPage() {
       <BeautySliderWrap $isReady={isReady}>
         <BeautySliderLabel>보정</BeautySliderLabel>
         <BeautySliderBox>
-          <svg width="70" height="220" viewBox="0 0 70 220" style={{ display: "block", overflow: "visible" }}>
+          <svg width="120" height="120" viewBox="0 0 120 120" style={{ display: "block" }}>
             <defs>
-              <filter id="beauty-glow" x="-100%" y="-100%" width="300%" height="300%">
-                <feGaussianBlur stdDeviation="7" result="blur" />
+              <filter id="beauty-glow" x="-60%" y="-60%" width="220%" height="220%">
+                <feGaussianBlur stdDeviation="5" result="blur" />
                 <feMerge>
                   <feMergeNode in="blur" />
                   <feMergeNode in="SourceGraphic" />
                 </feMerge>
               </filter>
-              <clipPath id="beauty-fill">
-                <rect x="0" y={220 * (1 - beautyIntensity / 100)} width="70" height={220 * (beautyIntensity / 100)} />
-              </clipPath>
             </defs>
-            {/* 배경 트랙 (어둡게) */}
-            <polygon points="5,0 65,0 38,220 32,220" fill="rgba(255,255,255,0.14)" />
-            {/* 채워진 부분 (밝게 + 글로우) */}
-            <polygon
-              points="5,0 65,0 38,220 32,220"
-              fill="rgba(255,255,255,0.92)"
-              clipPath="url(#beauty-fill)"
+            {/* 배경 링 */}
+            <circle
+              cx="60" cy="60" r="52"
+              fill="none"
+              stroke="rgba(255,255,255,0.22)"
+              strokeWidth="9"
+              strokeLinecap="round"
+            />
+            {/* 진행 링 (반시계 → 시계 방향, 상단 시작) */}
+            <circle
+              cx="60" cy="60" r="52"
+              fill="none"
+              stroke="rgba(255,255,255,0.95)"
+              strokeWidth="9"
+              strokeLinecap="round"
+              strokeDasharray={2 * Math.PI * 52}
+              strokeDashoffset={2 * Math.PI * 52 * (1 - beautyIntensity / 100)}
+              transform="rotate(-90 60 60)"
               filter="url(#beauty-glow)"
             />
           </svg>
+          <BeautyKitty src={gayPng} alt="보정" />
           <BeautyHiddenInput
             type="range"
             min="0"
@@ -514,8 +524,20 @@ const BeautySliderValue = styled(MulmaruText)`
 
 const BeautySliderBox = styled.div`
   position: relative;
-  width: 70px;
-  height: 220px;
+  width: 120px;
+  height: 120px;
+`;
+
+const BeautyKitty = styled.img`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 72px;
+  height: 72px;
+  transform: translate(-50%, -50%);
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.7));
 `;
 
 const BeautyHiddenInput = styled.input`
