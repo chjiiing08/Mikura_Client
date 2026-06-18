@@ -140,15 +140,15 @@ const STICKER_GROUPS = [
   },
 ] satisfies StickerGroup[];
 const BRUSH_STYLES = [
-  { id: "basic", label: "기본 펜", icon: brush1, width: 8.2, texture: "solid", glow: 0 },
-  { id: "neon", label: "네온 글로우 펜", icon: brush2, width: 6.2, texture: "neon", glow: 4.5 },
-  { id: "glitter", label: "글리터 펜", icon: brush3, width: 6.8, texture: "glitter", glow: 2.2 },
-  { id: "texture", label: "질감 브러쉬 펜", icon: brush4, width: 7.2, texture: "texture", glow: 0 },
-  { id: "crayon", label: "크레용 펜", icon: brush5, width: 8.8, texture: "crayon", glow: 0 },
-  { id: "pencil", label: "연필 질감 펜", icon: brush6, width: 4.4, texture: "pencil", glow: 0 },
-  { id: "marker", label: "부드러운 형광펜", icon: brush7, width: 10.2, texture: "marker", glow: 1.4 },
-  { id: "dash", label: "대시 펜", icon: brush8, width: 5.4, texture: "dash", glow: 0 },
-  { id: "doodle", label: "얇은 낙서펜", icon: brush9, width: 2.2, texture: "doodle", glow: 0 },
+  { id: "basic", label: "기본 펜", icon: brush1, width: 5.5, texture: "solid", glow: 0 },
+  { id: "neon", label: "네온 글로우 펜", icon: brush2, width: 4.2, texture: "neon", glow: 4.5 },
+  { id: "glitter", label: "글리터 펜", icon: brush3, width: 4.6, texture: "glitter", glow: 2.2 },
+  { id: "texture", label: "질감 브러쉬 펜", icon: brush4, width: 4.8, texture: "texture", glow: 0 },
+  { id: "crayon", label: "크레용 펜", icon: brush5, width: 6.0, texture: "crayon", glow: 0 },
+  { id: "pencil", label: "연필 질감 펜", icon: brush6, width: 3.0, texture: "pencil", glow: 0 },
+  { id: "marker", label: "부드러운 형광펜", icon: brush7, width: 7.0, texture: "marker", glow: 1.4 },
+  { id: "dash", label: "대시 펜", icon: brush8, width: 3.6, texture: "dash", glow: 0 },
+  { id: "doodle", label: "얇은 낙서펜", icon: brush9, width: 1.5, texture: "doodle", glow: 0 },
 ] as const;
 type BrushStyle = (typeof BRUSH_STYLES)[number]["id"];
 type BrushTexture = (typeof BRUSH_STYLES)[number]["texture"];
@@ -878,7 +878,7 @@ export default function DecoPhoto() {
   const [selectedHue, setSelectedHue] = useState(326);
   const [colorTone, setColorTone] = useState(58);
   const [selectedColor, setSelectedColor] = useState(getToneColor(326, 58));
-  const [brushSize, setBrushSize] = useState(12);
+  const [brushSize, setBrushSize] = useState(8);
   const [brushType, setBrushType] = useState<BrushStyle>("basic");
   const [photoDecorations, setPhotoDecorations] = useState<PhotoDecoration[]>(() =>
     Array.from({ length: PHOTO_SLOT_COUNT }, createEmptyPhotoDecoration),
@@ -1581,8 +1581,8 @@ export default function DecoPhoto() {
                 <BrushSizeSlider
                   aria-label="브러쉬 굵기"
                   type="range"
-                  min="4"
-                  max="28"
+                  min="3"
+                  max="20"
                   value={brushSize}
                   onChange={(event) => setBrushSize(Number(event.target.value))}
                 />
