@@ -389,7 +389,7 @@ export class BeautyFilter {
       fxChain.update();
 
       outCtx.clearRect(0, 0, cw, ch);
-      outCtx.drawImage(fxCanvas, 0, 0, cw, ch);
+      outCtx.drawImage(fxCanvas as unknown as HTMLCanvasElement, 0, 0, cw, ch);
 
       // 4-6. 각 얼굴마다 코 슬림 → 얼굴형 슬림 → 코 단축 순으로 적용
       result.faceLandmarks.forEach((p) => {
@@ -415,7 +415,7 @@ export class BeautyFilter {
     } else {
       fxCanvas.update();
       outCtx.clearRect(0, 0, cw, ch);
-      outCtx.drawImage(fxCanvas, 0, 0, cw, ch);
+      outCtx.drawImage(fxCanvas as unknown as HTMLCanvasElement, 0, 0, cw, ch);
     }
 
     texture.destroy();
