@@ -116,7 +116,7 @@ const Star = styled.img<{
 
 const ButtonStack = styled.div`
   position: absolute;
-  bottom: clamp(80px, 45vh, 170px);
+  bottom: clamp(60px, 35vh, 130px);
   left: 50%;
   display: flex;
   flex-direction: column;
