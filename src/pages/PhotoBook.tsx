@@ -260,6 +260,7 @@ const MemoGroup = styled.div<{ $slot: Slot }>`
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  pointer-events: auto;
 `;
 
 const MemoBox = styled.textarea`
