@@ -255,6 +255,15 @@ function CameraPage() {
 
       <BeautySliderWrap $isReady={isReady}>
         <BeautySliderLabel>보정</BeautySliderLabel>
+        <BeautyAdjustBtn
+          type="button"
+          aria-label="보정 강도 증가"
+          onClick={() => {
+            const val = Math.min(100, beautyIntensity + 10);
+            setBeautyIntensity(val);
+            beautyIntensityRef.current = val / 100;
+          }}
+        >▲</BeautyAdjustBtn>
         <BeautySliderBox>
           <svg width="120" height="120" viewBox="0 0 120 120" style={{ display: "block" }}>
             <defs>
@@ -266,7 +275,6 @@ function CameraPage() {
                 </feMerge>
               </filter>
             </defs>
-            {/* 배경 링 */}
             <circle
               cx="60" cy="60" r="52"
               fill="none"
@@ -274,7 +282,6 @@ function CameraPage() {
               strokeWidth="9"
               strokeLinecap="round"
             />
-            {/* 진행 링 (반시계 → 시계 방향, 상단 시작) */}
             <circle
               cx="60" cy="60" r="52"
               fill="none"
@@ -288,19 +295,16 @@ function CameraPage() {
             />
           </svg>
           <BeautyKitty src={gayPng} alt="보정" />
-          <BeautyHiddenInput
-            type="range"
-            min="0"
-            max="100"
-            value={beautyIntensity}
-            aria-label="보정 강도"
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              setBeautyIntensity(val);
-              beautyIntensityRef.current = val / 100;
-            }}
-          />
         </BeautySliderBox>
+        <BeautyAdjustBtn
+          type="button"
+          aria-label="보정 강도 감소"
+          onClick={() => {
+            const val = Math.max(0, beautyIntensity - 10);
+            setBeautyIntensity(val);
+            beautyIntensityRef.current = val / 100;
+          }}
+        >▼</BeautyAdjustBtn>
         <BeautySliderValue>{beautyIntensity}%</BeautySliderValue>
       </BeautySliderWrap>
 
@@ -540,17 +544,25 @@ const BeautyKitty = styled.img`
   filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.7));
 `;
 
-const BeautyHiddenInput = styled.input`
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  opacity: 0;
-  writing-mode: vertical-lr;
-  direction: rtl;
+const BeautyAdjustBtn = styled.button`
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 20px;
+  line-height: 1;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
   cursor: pointer;
+  transition: background 120ms ease, transform 80ms ease;
+
+  &:active {
+    background: rgba(255, 255, 255, 0.42);
+    transform: scale(0.92);
+  }
 `;
 
 const MaskImage = styled.img`
