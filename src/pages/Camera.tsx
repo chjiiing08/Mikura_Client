@@ -57,8 +57,22 @@ function CameraPage() {
 
     async function startCamera() {
       try {
+        // 외부 웹캠 우선 선택: 연결된 카메라 목록에서 내장 카메라 이외의 장치를 찾음
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter((d) => d.kind === "videoinput");
+        // 내장 카메라는 보통 label에 "integrated" / "facetime" / "isight" 포함
+        const externalCam = videoDevices.find(
+          (d) =>
+            !/(integrated|facetime|isight|built-?in)/i.test(d.label) &&
+            d.deviceId !== "",
+        );
+
+        const videoConstraint: MediaTrackConstraints = externalCam
+          ? { deviceId: { exact: externalCam.deviceId } }
+          : { facingMode: "user" };
+
         const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: videoConstraint,
           audio: false,
         });
 
