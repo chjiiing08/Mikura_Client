@@ -281,7 +281,7 @@ const MemoBox = styled.textarea<{ $editable: boolean }>`
   background: transparent;
   color: #30252b;
   font-family: "Mulmaru", "Mulmaru Mono", sans-serif;
-  font-size: clamp(11px, 0.85vw, 16px);
+  font-size: clamp(18px, 1.28vw, 24px);
   line-height: 1.15;
   font-weight: 700;
   text-align: inherit;
@@ -301,7 +301,7 @@ const DateText = styled.div`
   width: 100%;
   color: #30252b;
   font-family: "Mulmaru", "Mulmaru Mono", sans-serif;
-  font-size: clamp(8px, 0.62vw, 12px);
+  font-size: clamp(16px, 1.05vw, 20px);
   font-weight: 700;
   line-height: 1.1;
   white-space: nowrap;
