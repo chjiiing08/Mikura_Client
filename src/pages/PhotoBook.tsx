@@ -23,15 +23,16 @@ type Slot = {
   memoTop: number;
   memoWidth: number;
   memoHeight: number;
+  memoAlign?: "left" | "right";
 };
 
 const PAGE_SIZE = 4;
 
 const SLOTS: Slot[] = [
   { left: 12.9, top: 13.0, width: 17.2, memoLeft: 30.4, memoTop: 13.4, memoWidth: 9.5, memoHeight: 13.5 },
-  { left: 27.7, top: 51.5, width: 18.1, memoLeft: 17.7, memoTop: 54.2, memoWidth: 9.1, memoHeight: 13.2 },
+  { left: 27.7, top: 51.5, width: 18.1, memoLeft: 17.7, memoTop: 54.2, memoWidth: 9.1, memoHeight: 13.2, memoAlign: "right" },
   { left: 55.0, top: 13.0, width: 17.0, memoLeft: 72.9, memoTop: 13.4, memoWidth: 9.5, memoHeight: 13.2 },
-  { left: 67.8, top: 51.5, width: 18.0, memoLeft: 61.4, memoTop: 54.3, memoWidth: 9.4, memoHeight: 13.2 },
+  { left: 67.8, top: 51.5, width: 18.0, memoLeft: 57.4, memoTop: 54.3, memoWidth: 9.4, memoHeight: 13.2, memoAlign: "right" },
 ];
 
 function PhotoBook() {
@@ -48,6 +49,7 @@ function PhotoBook() {
   const visibleEntries = pages[safePageIndex] ?? [];
   const canGoPrev = safePageIndex > 0;
   const canGoNext = safePageIndex < pages.length - 1;
+  const canSave = Boolean(newEntryId);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +85,8 @@ function PhotoBook() {
   }
 
   async function handleSave() {
+    if (!canSave) return;
+
     await Promise.all(
       entries.map((entry) =>
         fetch(`${API_BASE}/api/photobook/${entry.id}`, {
@@ -108,6 +112,8 @@ function PhotoBook() {
 
         {!loading && visibleEntries.map((entry, index) => {
           const slot = SLOTS[index];
+          const isEditable = entry.id === newEntryId;
+          const hasMemo = entry.memo.trim().length > 0;
 
           return (
             <PhotoBookSlot key={entry.id}>
@@ -115,15 +121,17 @@ function PhotoBook() {
                 <PhotoImage src={entry.photo} alt="포토북 사진" />
               </SlotPhoto>
               <MemoGroup $slot={slot}>
-                <MemoBox
-                  value={entry.memo}
-                  placeholder="텍스트 입력"
-                  rows={Math.max(1, entry.memo.split("\n").length)}
-                  aria-label="포토북 메모"
-                  readOnly={entry.id !== newEntryId}
-                  $editable={entry.id === newEntryId}
-                  onChange={(event) => handleMemoChange(entry.id, event.target.value)}
-                />
+                {(isEditable || hasMemo) && (
+                  <MemoBox
+                    value={entry.memo}
+                    placeholder="텍스트 입력"
+                    rows={Math.max(1, entry.memo.split("\n").length)}
+                    aria-label="포토북 메모"
+                    readOnly={!isEditable}
+                    $editable={isEditable}
+                    onChange={(event) => handleMemoChange(entry.id, event.target.value)}
+                  />
+                )}
                 <DateText>{formatDate(entry.createdAt)}</DateText>
               </MemoGroup>
             </PhotoBookSlot>
@@ -156,7 +164,7 @@ function PhotoBook() {
       <BottomButton type="button" $side="left" onClick={handleBack}>
         뒤로가기
       </BottomButton>
-      <BottomButton type="button" $side="right" onClick={handleSave}>
+      <BottomButton type="button" $side="right" onClick={handleSave} disabled={!canSave}>
         저장하기
       </BottomButton>
 
@@ -204,10 +212,10 @@ const TitleText = styled(ManitoText)`
 
 const BookStage = styled.main`
   position: absolute;
-  top: 23%;
+  top: 18%;
   left: 50%;
   z-index: 2;
-  width: min(92vw, 1450px);
+  width: min(112vw, 1680px);
   aspect-ratio: 1408 / 568;
   transform: translateX(-50%);
 `;
@@ -238,6 +246,8 @@ const SlotPhoto = styled.div<{ $slot: Slot }>`
   width: ${({ $slot }) => $slot.width}%;
   aspect-ratio: 285 / 229;
   place-items: center;
+  border: 1px solid rgba(226, 174, 198, 0.42);
+  box-shadow: 0 2px 6px rgba(120, 82, 98, 0.1);
   cursor: pointer;
   pointer-events: auto;
 `;
@@ -259,7 +269,8 @@ const MemoGroup = styled.div<{ $slot: Slot }>`
   height: ${({ $slot }) => $slot.memoHeight}%;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: ${({ $slot }) => ($slot.memoAlign === "right" ? "flex-end" : "flex-start")};
+  text-align: ${({ $slot }) => $slot.memoAlign ?? "left"};
   pointer-events: auto;
 `;
 
@@ -286,6 +297,7 @@ const MemoBox = styled.textarea<{ $editable: boolean }>`
 `;
 
 const DateText = styled.div`
+  width: 100%;
   color: #30252b;
   font-family: "Mulmaru", "Mulmaru Mono", sans-serif;
   font-size: clamp(8px, 0.62vw, 12px);
@@ -344,6 +356,12 @@ const BottomButton = styled.button<{ $side: "left" | "right" }>`
   font-size: 20px;
   box-shadow: 0 5px 0 rgba(255, 181, 216, 0.28);
   cursor: pointer;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+    pointer-events: none;
+  }
 `;
 
 const LightboxOverlay = styled.div`
