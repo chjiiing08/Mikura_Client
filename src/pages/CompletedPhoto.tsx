@@ -171,9 +171,9 @@ const TitleText = styled(ManitoText)`
   margin: 0;
   transform: translateX(-50%);
   color: #ff87ba;
-  text-shadow: 0 0 8px #f6a8dc;
-  -webkit-text-stroke-width: 5px;
-  -webkit-text-stroke-color: #fff;
+  text-shadow: 0 0 9.2px #f6a8dc;
+  -webkit-text-stroke-width: 6px;
+  -webkit-text-stroke-color: #f175a5;
   font-size: clamp(28px, 3.2vw, 45px);
   white-space: nowrap;
 `;
@@ -288,24 +288,34 @@ const ButtonRow = styled.div`
 `;
 
 const ActionButton = styled.button`
-  min-height: 44px;
-  border: 0;
-  border-radius: 8px;
-  background: rgba(255, 184, 217, 0.96);
-  color: #fff;
+  min-width: 120px;
+  min-height: 52px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 22px;
+  padding: 0 24px;
+  background: linear-gradient(180deg, #fff4fc 0%, #ffe7f8 100%);
+  color: #ff9ccc;
   font-family: "Mulmaru", "Mulmaru Mono", sans-serif;
   font-size: 18px;
   line-height: 1;
-  box-shadow: 0 3px 0 rgba(255, 145, 196, 0.38);
+  box-shadow:
+    0 0 4.9px rgba(0, 0, 0, 0.09),
+    inset -3px -5px 6px rgba(201, 122, 165, 0.25),
+    inset 0 2px 8px rgba(255, 255, 255, 0.5);
   cursor: pointer;
-  transition: transform 180ms ease, background-color 180ms ease;
+  transition: filter 0.2s ease, transform 0.2s ease;
 
   &:hover {
-    background: #ffa8d1;
-    transform: translateY(-1px);
+    filter: brightness(1.05);
+    transform: scale(1.05);
   }
 
   &:active {
-    transform: translateY(1px);
+    transform: scale(0.95);
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: default;
   }
 `;
