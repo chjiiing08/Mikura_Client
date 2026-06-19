@@ -280,42 +280,23 @@ const QrErrorText = styled(MulmaruText)`
 
 const ButtonRow = styled.div`
   display: grid;
-  width: min(100%, 300px);
-  grid-template-columns: 1fr 1.38fr;
-  gap: 18px;
-  margin-top: 34px;
+  width: min(100%, 310px);
+  grid-template-columns: 116px 186px;
+  gap: 12px;
+  margin-top: 32px;
 `;
 
 const ActionButton = styled.button`
-  min-width: 120px;
-  min-height: 60px;
+  min-width: 0;
+  min-height: 52px;
   border: 0;
-  border-radius: 26px;
-  padding: 0 28px;
-  background: #fff;
-  color: #ff87ba;
-  font-family: "Hakgyoansim_ManitoR", "Hakgyoansim Manito R", sans-serif;
-  font-size: 26px;
-  font-weight: 400;
-  line-height: 1;
-  paint-order: stroke fill;
-  -webkit-text-stroke-width: 4px;
-  -webkit-text-stroke-color: #fff;
-  box-shadow:
-    0 4px 0 rgba(255, 180, 216, 0.35),
-    0 2px 12px rgba(255, 160, 210, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #ff9ccc;
+  font-family: "Mulmaru", "Mulmaru Mono", sans-serif;
+  font-size: 20px;
+  box-shadow: 0 5px 0 rgba(255, 181, 216, 0.28);
   cursor: pointer;
-  transition: filter 0.2s ease, transform 0.2s ease;
-
-  &:hover {
-    filter: brightness(1.04);
-    transform: scale(1.04);
-  }
-
-  &:active {
-    transform: scale(0.96);
-    box-shadow: 0 2px 0 rgba(255, 180, 216, 0.35);
-  }
 
   &:disabled {
     opacity: 0.65;

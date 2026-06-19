@@ -207,7 +207,7 @@ const BookStage = styled.main`
   top: 23%;
   left: 50%;
   z-index: 2;
-  width: min(80vw, 1180px);
+  width: min(92vw, 1450px);
   aspect-ratio: 1408 / 568;
   transform: translateX(-50%);
 `;
