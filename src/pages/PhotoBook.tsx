@@ -284,6 +284,7 @@ const MemoBox = styled.textarea<{ $editable: boolean }>`
   font-size: clamp(11px, 0.85vw, 16px);
   line-height: 1.15;
   font-weight: 700;
+  text-align: inherit;
   resize: none;
   outline: none;
   overflow: hidden;
