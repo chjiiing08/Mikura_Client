@@ -29,10 +29,10 @@ type Slot = {
 const PAGE_SIZE = 4;
 
 const SLOTS: Slot[] = [
-  { left: 12.9, top: 13.0, width: 17.2, memoLeft: 30.4, memoTop: 13.4, memoWidth: 9.5, memoHeight: 13.5 },
-  { left: 27.7, top: 51.5, width: 18.1, memoLeft: 17.7, memoTop: 54.2, memoWidth: 9.1, memoHeight: 13.2, memoAlign: "right" },
+  { left: 12.9, top: 13.0, width: 17.2, memoLeft: 31, memoTop: 13.4, memoWidth: 9.5, memoHeight: 13.5 },
+  { left: 27.7, top: 51.5, width: 18.1, memoLeft: 17.7, memoTop: 51.5, memoWidth: 9.1, memoHeight: 13.2, memoAlign: "right" },
   { left: 55.0, top: 13.0, width: 17.0, memoLeft: 72.9, memoTop: 13.4, memoWidth: 9.5, memoHeight: 13.2 },
-  { left: 67.8, top: 51.5, width: 18.0, memoLeft: 57.4, memoTop: 54.3, memoWidth: 9.4, memoHeight: 13.2, memoAlign: "right" },
+  { left: 67.8, top: 51.5, width: 18.0, memoLeft: 57.4, memoTop: 51.5, memoWidth: 9.4, memoHeight: 13.2, memoAlign: "right" },
 ];
 
 function PhotoBook() {
