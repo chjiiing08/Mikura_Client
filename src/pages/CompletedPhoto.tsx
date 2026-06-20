@@ -183,9 +183,9 @@ const ResultLayout = styled.main`
   left: 50%;
   z-index: 2;
   display: grid;
-  width: min(88vw, 1360px);
-  grid-template-columns: minmax(620px, 1fr) 315px;
-  gap: clamp(44px, 5vw, 96px);
+  width: min(92vw, 1500px);
+  grid-template-columns: minmax(720px, 1fr) 315px;
+  gap: clamp(48px, 5.4vw, 108px);
   align-items: end;
   transform: translate(-50%, -50%);
 `;

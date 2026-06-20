@@ -158,9 +158,9 @@ const SelectionLayout = styled.div`
   left: 50%;
   z-index: 2;
   display: grid;
-  width: min(94vw, 1480px);
-  grid-template-columns: minmax(0, 920px) minmax(240px, 1fr);
-  gap: clamp(24px, 2.8vw, 54px);
+  width: min(96vw, 1600px);
+  grid-template-columns: minmax(0, 1000px) minmax(260px, 1fr);
+  gap: clamp(28px, 3vw, 62px);
   align-items: center;
   transform: translate(-50%, -50%);
 `;

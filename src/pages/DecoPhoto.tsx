@@ -1723,18 +1723,18 @@ const TimerText = styled(MulmaruText)`
 
 const PhotoStrip = styled.div`
   position: absolute;
-  top: 18%;
+  top: 16%;
   left: 50%;
   z-index: 2;
   display: grid;
-  width: min(86vw, 1400px);
+  width: min(80vw, 1320px);
   grid-template-columns: repeat(4, minmax(120px, 1fr));
   gap: clamp(16px, 2vw, 22px);
   transform: translateX(-50%);
 `;
 
 const PhotoSlot = styled.button<{ $isActive: boolean }>`
-  height: clamp(92px, 11vw, 222px);
+  height: clamp(92px, 8vw, 150px);
   border: ${({ $isActive }) => ($isActive ? "4px solid #ff8bc4" : "0")};
   border-radius: 14px;
   padding: 0;
@@ -1755,13 +1755,13 @@ const PhotoSlotImage = styled.img`
 
 const WorkArea = styled.div`
   position: absolute;
-  top: 50%;
+  top: 64%;
   left: 50%;
   z-index: 2;
   display: grid;
-  width: min(98vw, 1680px);
-  grid-template-columns: minmax(0, 1080px) clamp(390px, 32vw, 520px);
-  gap: clamp(4px, 0.8vw, 14px);
+  width: min(99vw, 1760px);
+  grid-template-columns: minmax(0, 1120px) clamp(390px, 32vw, 520px);
+  gap: clamp(8px, 1vw, 18px);
   align-items: stretch;
   transform: translate(-50%, -50%);
 `;
