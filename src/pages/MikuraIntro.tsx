@@ -133,8 +133,8 @@ const BaseButton = styled(PurikuraButton)`
 `;
 
 const GuideButton = styled(BaseButton)`
-  width: clamp(330px, 32vw, 580px);
-  height: clamp(96px, 9.6vh, 116px);
+  width: clamp(300px, 29vw, 520px);
+  height: clamp(88px, 9vh, 108px);
 
   & > img {
     width: 45%;

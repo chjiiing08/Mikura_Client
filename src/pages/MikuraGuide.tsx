@@ -19,8 +19,8 @@ export default MikuraGuide;
 const CameraButton = styled(PurikuraButton)`
   bottom: 17%;
   left: 50%;
-  width: clamp(220px, 25vw, 380px);
-  height: clamp(70px, 8vh, 70px);
+  width: clamp(300px, 29vw, 520px);
+  height: clamp(88px, 9vh, 108px);
   border: none;
   --button-transform: translateX(-50%);
 

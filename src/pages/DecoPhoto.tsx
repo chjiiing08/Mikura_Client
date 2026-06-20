@@ -1727,14 +1727,14 @@ const PhotoStrip = styled.div`
   left: 50%;
   z-index: 2;
   display: grid;
-  width: min(80vw, 1320px);
+  width: min(86vw, 1450px);
   grid-template-columns: repeat(4, minmax(120px, 1fr));
   gap: clamp(16px, 2vw, 22px);
   transform: translateX(-50%);
 `;
 
 const PhotoSlot = styled.button<{ $isActive: boolean }>`
-  height: clamp(92px, 8vw, 150px);
+  height: clamp(110px, 9vw, 175px);
   border: ${({ $isActive }) => ($isActive ? "4px solid #ff8bc4" : "0")};
   border-radius: 14px;
   padding: 0;
@@ -1755,7 +1755,7 @@ const PhotoSlotImage = styled.img`
 
 const WorkArea = styled.div`
   position: absolute;
-  top: 38%;
+  top: 35%;
   left: 50%;
   z-index: 2;
   display: grid;
