@@ -116,19 +116,19 @@ const Star = styled.img<{
 
 const ButtonStack = styled.div`
   position: absolute;
-  bottom: clamp(90px, 42vh, 180px);
+  bottom: 24vh;
   left: 50%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(12px, 1.5vh, 16px);
+  gap: 22px;
   transform: translateX(-50%);
 `;
 
 const BaseButton = styled(PurikuraButton)`
   position: static;
-  width: clamp(220px, 25vw, 380px);
-  height: clamp(70px, 8vh, 70px);
+  width: clamp(300px, 29vw, 520px);
+  height: clamp(88px, 9vh, 108px);
   border: none;
 `;
 

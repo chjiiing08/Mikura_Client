@@ -212,12 +212,13 @@ const TitleText = styled(ManitoText)`
 
 const BookStage = styled.main`
   position: absolute;
-  top: 18%;
+  top: 50%;
   left: 50%;
   z-index: 2;
-  width: min(112vw, 1680px);
+  width: min(96vw, 1840px);
   aspect-ratio: 1408 / 568;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%) scale(1.12);
+  transform-origin: center;
 `;
 
 const BookImage = styled.img`
@@ -345,17 +346,17 @@ const PageTurnButton = styled.button<{ $direction: "prev" | "next" }>`
 const BottomButton = styled.button<{ $side: "left" | "right" }>`
   position: absolute;
   ${({ $side }) => ($side === "left" ? "left: 8%;" : "right: 8%;")}
-  bottom: 8%;
+  bottom: 6%;
   z-index: 3;
-  min-width: 156px;
-  min-height: 52px;
+  min-width: 210px;
+  min-height: 68px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.96);
   color: #ff9ccc;
   font-family: "Mulmaru", "Mulmaru Mono", sans-serif;
-  font-size: 20px;
-  box-shadow: 0 5px 0 rgba(255, 181, 216, 0.28);
+  font-size: 28px;
+  box-shadow: 0 7px 0 rgba(255, 181, 216, 0.28);
   cursor: pointer;
 
   &:disabled {
