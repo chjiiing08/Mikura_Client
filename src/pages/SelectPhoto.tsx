@@ -17,7 +17,8 @@ export default function SelectPhoto() {
     Array.from({ length: TOTAL_SLOT_COUNT }, () => null),
   );
   const selectedSlotIndex = selectedPhotos.findIndex((photo) => !photo);
-  const isSelectionComplete = selectedPhotos.every(isPhotoDataUrl);
+  const confirmedPhotos = selectedPhotos.filter(isPhotoDataUrl);
+  const isSelectionComplete = confirmedPhotos.length === TOTAL_SLOT_COUNT;
   const currentSlotNumber =
     selectedSlotIndex === -1 ? TOTAL_SLOT_COUNT : selectedSlotIndex + 1;
 
@@ -46,7 +47,6 @@ export default function SelectPhoto() {
       return;
     }
 
-    const confirmedPhotos = selectedPhotos.filter(isPhotoDataUrl);
     sessionStorage.setItem("mikuraSelectedPhotos", JSON.stringify(confirmedPhotos));
     navigate("/decophoto");
   }
@@ -286,7 +286,7 @@ const NextButton = styled.button`
   position: absolute;
   right: 6%;
   bottom: 9%;
-  z-index: 3;
+  z-index: 20;
   width: 72px;
   height: 72px;
   border: 0;

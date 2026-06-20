@@ -2488,7 +2488,7 @@ const NextButton = styled.button`
   position: absolute;
   right: 6%;
   bottom: 9%;
-  z-index: 9;
+  z-index: 20;
   width: 72px;
   height: 72px;
   border: 0;
